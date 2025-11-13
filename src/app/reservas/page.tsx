@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import Navigation from '../components/Navigation';
 
 interface Service {
@@ -124,10 +125,10 @@ export default function ReservarPage() {
           {/* Navigation */}
           <nav className="border-t border-gray-200">
             <div className="flex space-x-8">
-              <a href="/" className="py-4 text-gray-600 hover:text-blue-600 transition-colors">Inicio</a>
-              <a href="/reservas" className="py-4 text-blue-600 border-b-2 border-blue-600 font-medium">Reserva de Cita</a>
-              <a href="/servicios" className="py-4 text-gray-600 hover:text-blue-600 transition-colors">Servicios</a>
-              <a href="/contacto" className="py-4 text-gray-600 hover:text-blue-600 transition-colors">Contacto</a>
+              <Link href="/" className="py-4 text-gray-600 hover:text-blue-600 transition-colors">Inicio</Link>
+              <Link href="/reservas" className="py-4 text-blue-600 border-b-2 border-blue-600 font-medium">Reserva de Cita</Link>
+              <Link href="/servicios" className="py-4 text-gray-600 hover:text-blue-600 transition-colors">Servicios</Link>
+              <Link href="/contacto" className="py-4 text-gray-600 hover:text-blue-600 transition-colors">Contacto</Link>
             </div>
           </nav>
         </div>

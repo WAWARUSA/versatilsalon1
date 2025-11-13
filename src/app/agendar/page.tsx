@@ -203,9 +203,10 @@ export default function AgendarPage() {
       await addDoc(collection(db, 'appointments'), appointmentData);
 
       setShowSuccessModal(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error confirming reservation:', err);
-      alert('No se pudo crear la reserva: ' + (err?.message || err));
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      alert('No se pudo crear la reserva: ' + errorMessage);
     } finally {
       setIsSubmitting(false);
     }

@@ -28,7 +28,7 @@ export default function CortesPage() {
             <img src="https://placehold.co/400x400/e1bee7/444?text=Balayage" alt="Técnica de Balayage" />
             <div className="card-content">
               <h2>Balayage</h2>
-              <p>Iluminación sutil y natural aplicada a mano alzada para un efecto "besado por el sol".</p>
+              <p>Iluminación sutil y natural aplicada a mano alzada para un efecto &quot;besado por el sol&quot;.</p>
               <p className="price">$70.000</p>
             </div>
           </div>

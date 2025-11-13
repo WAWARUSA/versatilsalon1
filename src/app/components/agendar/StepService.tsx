@@ -6,7 +6,7 @@ import { Scissors, Palette, Sparkles, Hand, Heart, Sparkle } from 'lucide-react'
 interface Service {
   id: string;
   name: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   description: string;
 }
 
