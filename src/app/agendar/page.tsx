@@ -164,43 +164,34 @@ export default function AgendarPage() {
       const endTime = new Date(startTime.getTime() + serviceDuration * 60000);
 
       // 4. Buscar el estilista en Firebase (workers) - IMPORTANTE: usar el nombre EXACTO de Firebase
+      // Los workers en Firebase se llaman "Persona 1", "Persona 2", etc.
       const stylistNameMap: Record<string, string> = {
-        '1': 'María González',
-        '2': 'Carlos Rodríguez',
-        '3': 'Ana Martínez',
-        '4': 'Laura Sánchez',
+        '1': 'Persona 1',
+        '2': 'Persona 2',
+        '3': 'Persona 3',
+        '4': 'Persona 4',
       };
       
       const stylistDisplayName = stylistNameMap[selectedStylist || ''] || 'Por asignar';
       
       // Buscar el worker en Firebase y usar el nombre EXACTO que está guardado
       // La app de escritorio compara: app.performedBy !== worker.name (comparación exacta)
-      let performedBy = 'Por asignar';
+      let performedBy = stylistDisplayName; // Usar el nombre mapeado por defecto
+      
       if (selectedStylist) {
-        // Primero intentar búsqueda exacta
-        const workersQuery = query(collection(db, 'workers'), where('name', '==', stylistDisplayName));
-        const workersSnapshot = await getDocs(workersQuery);
-        if (!workersSnapshot.empty) {
-          // Usar el nombre EXACTO que está en Firebase
-          const workerData = workersSnapshot.docs[0].data();
-          performedBy = workerData.name; // Nombre exacto de Firebase
-        } else {
-          // Si no encuentra con búsqueda exacta, buscar todos y hacer match flexible
-          const allWorkersSnapshot = await getDocs(collection(db, 'workers'));
-          const allWorkers = allWorkersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          const foundWorker = allWorkers.find((w: any) => {
-            const workerName = (w.name || '').toLowerCase().trim();
-            const searchName = stylistDisplayName.toLowerCase().trim();
-            return workerName === searchName || 
-                   workerName.includes(searchName) || 
-                   searchName.includes(workerName);
-          });
-          if (foundWorker) {
-            performedBy = foundWorker.name; // Usar nombre exacto de Firebase
-          } else {
-            // Si no se encuentra, usar el nombre mapeado (pero puede que no aparezca en el calendario)
-            performedBy = stylistDisplayName;
+        try {
+          // Buscar el worker por nombre exacto
+          const workersQuery = query(collection(db, 'workers'), where('name', '==', stylistDisplayName));
+          const workersSnapshot = await getDocs(workersQuery);
+          if (!workersSnapshot.empty) {
+            // Usar el nombre EXACTO que está en Firebase
+            const workerData = workersSnapshot.docs[0].data();
+            performedBy = workerData.name || stylistDisplayName; // Nombre exacto de Firebase
           }
+        } catch (workerError) {
+          // Si falla la búsqueda, usar el nombre mapeado (mejor que fallar todo)
+          console.warn('Error buscando worker, usando nombre mapeado:', workerError);
+          performedBy = stylistDisplayName;
         }
       }
 
