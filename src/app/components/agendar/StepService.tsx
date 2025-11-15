@@ -129,7 +129,7 @@ export default function StepService({ selectedService, onSelect }: StepServicePr
         id: fs.name.toLowerCase().replace(/\s+/g, '-'),
         name: fs.name,
         icon,
-        description: fs.description || 'Servicio profesional',
+        description: (fs.description as string) || 'Servicio profesional',
         firebaseId: fs.id,
       });
     }
