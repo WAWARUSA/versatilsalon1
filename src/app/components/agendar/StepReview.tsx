@@ -43,6 +43,7 @@ export default function StepReview({
     // Leer el nombre del worker desde Firebase usando su ID
     if (selectedStylist) {
       const fetchWorkerName = async () => {
+        if (!db) return;
         try {
           const workerRef = doc(db, 'workers', selectedStylist);
           const workerSnap = await getDoc(workerRef);
