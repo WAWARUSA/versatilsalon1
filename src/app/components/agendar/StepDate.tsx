@@ -237,12 +237,16 @@ export default function StepDate({
         );
 
         const snapshot = await getDocs(appointmentsQuery);
-        const allAppointments = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          startTime: doc.data().startTime.toDate(),
-          endTime: doc.data().endTime.toDate(),
-        }));
+        const allAppointments: Appointment[] = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            startTime: data.startTime.toDate(),
+            endTime: data.endTime.toDate(),
+            performedBy: (data.performedBy as string) || '',
+            ...data,
+          } as Appointment;
+        });
 
         // Filtrar por performedBy en el código (más eficiente que múltiples where)
         const appointments = allAppointments.filter(app => app.performedBy === workerName);
