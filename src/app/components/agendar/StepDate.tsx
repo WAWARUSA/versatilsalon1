@@ -21,6 +21,8 @@ interface DaySchedule {
   end: string;
 }
 
+type DayName = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
 interface WorkerSchedule {
   schedule: {
     monday?: DaySchedule;
@@ -266,7 +268,7 @@ export default function StepDate({
 
     const date = new Date(selectedDate);
     const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1; // Ajustar para que Lunes = 0
-    const dayName = DAYS_OF_WEEK[dayIndex];
+    const dayName = DAYS_OF_WEEK[dayIndex] as DayName;
     const daySchedule = workerSchedule.schedule?.[dayName];
 
     // Verificar si el día está habilitado
