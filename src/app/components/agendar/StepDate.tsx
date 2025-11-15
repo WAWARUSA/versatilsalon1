@@ -15,6 +15,32 @@ interface StepDateProps {
   onSelectTime: (time: string) => void;
 }
 
+interface DaySchedule {
+  isEnabled: boolean;
+  start: string;
+  end: string;
+}
+
+interface WorkerSchedule {
+  schedule: {
+    monday?: DaySchedule;
+    tuesday?: DaySchedule;
+    wednesday?: DaySchedule;
+    thursday?: DaySchedule;
+    friday?: DaySchedule;
+    saturday?: DaySchedule;
+    sunday?: DaySchedule;
+  };
+}
+
+interface Appointment {
+  id: string;
+  startTime: Date;
+  endTime: Date;
+  performedBy: string;
+  [key: string]: unknown;
+}
+
 // Generate next 14 days
 const generateDates = () => {
   const dates = [];
@@ -69,15 +95,11 @@ export default function StepDate({
   onSelectTime,
 }: StepDateProps) {
   const dates = generateDates();
-  const [workerSchedule, setWorkerSchedule] = useState<any>(null);
+  const [workerSchedule, setWorkerSchedule] = useState<WorkerSchedule | null>(null);
   const [workerName, setWorkerName] = useState<string>('');
-  const [existingAppointments, setExistingAppointments] = useState<any[]>([]);
+  const [existingAppointments, setExistingAppointments] = useState<Appointment[]>([]);
   const [serviceDuration, setServiceDuration] = useState<number>(60); // Duración por defecto en minutos
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
-
-  const formatDate = (date: Date) => {
-    return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
-  };
 
   const isToday = (date: Date) => {
     const today = new Date();

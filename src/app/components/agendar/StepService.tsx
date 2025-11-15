@@ -60,8 +60,17 @@ interface StepServiceProps {
   onSelect: (serviceId: string) => void;
 }
 
+interface FirebaseService {
+  id: string;
+  name: string;
+  duration?: number;
+  price?: number;
+  isActive?: boolean;
+  [key: string]: unknown;
+}
+
 export default function StepService({ selectedService, onSelect }: StepServiceProps) {
-  const [firebaseServices, setFirebaseServices] = useState<any[]>([]);
+  const [firebaseServices, setFirebaseServices] = useState<FirebaseService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Cargar servicios desde Firebase
