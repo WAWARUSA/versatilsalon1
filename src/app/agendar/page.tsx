@@ -13,7 +13,7 @@ import StepReview from '../components/agendar/StepReview';
 import SuccessModal from '../components/agendar/SuccessModal';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { db } from '../../lib/firebase';
-import { collection, addDoc, query, where, getDocs, serverTimestamp, Timestamp, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, serverTimestamp, Timestamp, updateDoc, doc, getDoc } from 'firebase/firestore';
 
 const steps = [
   { number: 1, title: 'Servicio' },
@@ -117,7 +117,9 @@ export default function AgendarPage() {
         clientName = formData.nombre.trim();
       }
 
-      // 2. Mapear el ID del servicio a nombre y buscar en Firebase
+      // 2. Buscar el servicio en Firebase
+      // Primero intentar buscar por ID directo (si viene de Firebase)
+      // Si no, mapear el ID a nombre y buscar por nombre
       const serviceNameMap: Record<string, string> = {
         'corte': 'Corte de Cabello',
         'coloracion': 'Coloración',
@@ -127,30 +129,44 @@ export default function AgendarPage() {
         'premium': 'Servicios Premium',
       };
       
-      const serviceDisplayName = serviceNameMap[selectedService || ''] || selectedService || 'Servicio';
-      
-      // Buscar el servicio en Firebase por nombre
-      const servicesQuery = query(collection(db, 'services'), where('name', '==', serviceDisplayName));
-      const servicesSnapshot = await getDocs(servicesQuery);
-      
       let serviceId: string;
       let serviceName: string;
       let serviceDuration: number = 60; // Duración por defecto en minutos
       let servicePrice: number = 0;
       
-      if (!servicesSnapshot.empty) {
-        const service = servicesSnapshot.docs[0];
-        serviceId = service.id;
-        const serviceData = service.data();
-        serviceName = serviceData.name;
-        serviceDuration = serviceData.duration || 60;
-        servicePrice = serviceData.price || 0;
-      } else {
-        // Si no existe el servicio, usar valores por defecto
-        serviceId = 'web-service';
-        serviceName = serviceDisplayName;
-        serviceDuration = 60;
-        servicePrice = 0;
+      // Intentar buscar por ID directo primero (si es un ID de Firebase)
+      try {
+        const directServiceRef = doc(db, 'services', selectedService || '');
+        const directServiceSnap = await getDoc(directServiceRef);
+        if (directServiceSnap.exists()) {
+          const serviceData = directServiceSnap.data();
+          serviceId = directServiceSnap.id;
+          serviceName = serviceData.name;
+          serviceDuration = serviceData.duration || 60;
+          servicePrice = serviceData.price || 0;
+        } else {
+          throw new Error('Service not found by ID');
+        }
+      } catch {
+        // Si no se encuentra por ID, buscar por nombre
+        const serviceDisplayName = serviceNameMap[selectedService || ''] || selectedService || 'Servicio';
+        const servicesQuery = query(collection(db, 'services'), where('name', '==', serviceDisplayName));
+        const servicesSnapshot = await getDocs(servicesQuery);
+        
+        if (!servicesSnapshot.empty) {
+          const service = servicesSnapshot.docs[0];
+          serviceId = service.id;
+          const serviceData = service.data();
+          serviceName = serviceData.name;
+          serviceDuration = serviceData.duration || 60;
+          servicePrice = serviceData.price || 0;
+        } else {
+          // Si no existe el servicio, usar valores por defecto
+          serviceId = 'web-service';
+          serviceName = serviceDisplayName;
+          serviceDuration = 60;
+          servicePrice = 0;
+        }
       }
 
       // 3. Calcular startTime y endTime
@@ -163,35 +179,21 @@ export default function AgendarPage() {
       startTime.setHours(hours, minutes, 0, 0);
       const endTime = new Date(startTime.getTime() + serviceDuration * 60000);
 
-      // 4. Buscar el estilista en Firebase (workers) - IMPORTANTE: usar el nombre EXACTO de Firebase
-      // Los workers en Firebase se llaman "Persona 1", "Persona 2", etc.
-      const stylistNameMap: Record<string, string> = {
-        '1': 'Persona 1',
-        '2': 'Persona 2',
-        '3': 'Persona 3',
-        '4': 'Persona 4',
-      };
-      
-      const stylistDisplayName = stylistNameMap[selectedStylist || ''] || 'Por asignar';
-      
-      // Buscar el worker en Firebase y usar el nombre EXACTO que está guardado
-      // La app de escritorio compara: app.performedBy !== worker.name (comparación exacta)
-      let performedBy = stylistDisplayName; // Usar el nombre mapeado por defecto
+      // 4. Buscar el estilista en Firebase usando el ID directamente
+      // Ahora selectedStylist es el ID del worker en Firebase (no un número mapeado)
+      let performedBy = 'Por asignar';
       
       if (selectedStylist) {
         try {
-          // Buscar el worker por nombre exacto
-          const workersQuery = query(collection(db, 'workers'), where('name', '==', stylistDisplayName));
-          const workersSnapshot = await getDocs(workersQuery);
-          if (!workersSnapshot.empty) {
-            // Usar el nombre EXACTO que está en Firebase
-            const workerData = workersSnapshot.docs[0].data();
-            performedBy = workerData.name || stylistDisplayName; // Nombre exacto de Firebase
+          // Buscar el worker por su ID del documento directamente
+          const workerRef = doc(db, 'workers', selectedStylist);
+          const workerSnap = await getDoc(workerRef);
+          if (workerSnap.exists()) {
+            performedBy = workerSnap.data().name || 'Por asignar';
           }
         } catch (workerError) {
-          // Si falla la búsqueda, usar el nombre mapeado (mejor que fallar todo)
-          console.warn('Error buscando worker, usando nombre mapeado:', workerError);
-          performedBy = stylistDisplayName;
+          console.warn('Error buscando worker:', workerError);
+          performedBy = 'Por asignar';
         }
       }
 
@@ -204,7 +206,7 @@ export default function AgendarPage() {
         startTime: Timestamp.fromDate(startTime),
         endTime: Timestamp.fromDate(endTime),
         status: 'pending', // Estado pendiente para que la jefa lo confirme
-        notes: formData.comentario || `Reserva desde portal web. Estilista solicitado: ${stylistDisplayName}`,
+        notes: formData.comentario || `Reserva desde portal web. Estilista solicitado: ${performedBy}`,
         performedBy,
         price: servicePrice,
         origin: 'web',
@@ -243,6 +245,8 @@ export default function AgendarPage() {
       case 3:
         return (
           <StepDate
+            selectedStylist={selectedStylist}
+            selectedService={selectedService}
             selectedDate={selectedDate}
             selectedTime={selectedTime}
             onSelectDate={setSelectedDate}

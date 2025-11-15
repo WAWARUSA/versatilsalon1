@@ -1,7 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Calendar, Clock, User, Scissors, Mail, Phone } from 'lucide-react';
+import { db } from '../../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface StepReviewProps {
   selectedService: string;
@@ -26,13 +29,6 @@ const serviceNames: { [key: string]: string } = {
   premium: 'Servicios Premium',
 };
 
-const stylistNames: { [key: string]: string } = {
-  '1': 'María González',
-  '2': 'Carlos Rodríguez',
-  '3': 'Ana Martínez',
-  '4': 'Laura Sánchez',
-};
-
 export default function StepReview({
   selectedService,
   selectedStylist,
@@ -41,6 +37,31 @@ export default function StepReview({
   formData,
   onConfirm,
 }: StepReviewProps) {
+  const [stylistName, setStylistName] = useState<string>('Cargando...');
+
+  useEffect(() => {
+    // Leer el nombre del worker desde Firebase usando su ID
+    if (selectedStylist) {
+      const fetchWorkerName = async () => {
+        try {
+          const workerRef = doc(db, 'workers', selectedStylist);
+          const workerSnap = await getDoc(workerRef);
+          if (workerSnap.exists()) {
+            setStylistName(workerSnap.data().name || 'Sin nombre');
+          } else {
+            setStylistName('No encontrado');
+          }
+        } catch (error) {
+          console.error('Error cargando nombre del worker:', error);
+          setStylistName('Error al cargar');
+        }
+      };
+      fetchWorkerName();
+    } else {
+      setStylistName('No seleccionado');
+    }
+  }, [selectedStylist]);
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -94,7 +115,7 @@ export default function StepReview({
             <User className="w-5 h-5 text-[#c9a857]" />
             <h3 className="font-semibold text-white">Estilista</h3>
           </div>
-          <p className="text-gray-300">{stylistNames[selectedStylist] || selectedStylist}</p>
+          <p className="text-gray-300">{stylistName}</p>
         </div>
 
         {/* Date and Time */}

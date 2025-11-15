@@ -1,16 +1,22 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Scissors, Palette, Sparkles, Hand, Heart, Sparkle } from 'lucide-react';
+import { db } from '../../lib/firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 interface Service {
   id: string;
   name: string;
   icon: React.ComponentType<{ className?: string }>;
   description: string;
+  firebaseId?: string; // ID en Firebase para mapeo
 }
 
-const services: Service[] = [
+// Servicios base con iconos y descripciones (para UI)
+// Estos se mapean a servicios en Firebase por nombre
+const baseServices: Omit<Service, 'firebaseId'>[] = [
   {
     id: 'corte',
     name: 'Corte de Cabello',
@@ -55,6 +61,77 @@ interface StepServiceProps {
 }
 
 export default function StepService({ selectedService, onSelect }: StepServiceProps) {
+  const [firebaseServices, setFirebaseServices] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Cargar servicios desde Firebase
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'services'), (snapshot) => {
+      const services = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setFirebaseServices(services);
+      setIsLoading(false);
+    }, (error) => {
+      console.error('Error cargando servicios:', error);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Combinar servicios base con servicios de Firebase
+  // Si un servicio de Firebase coincide por nombre con uno base, usar el de Firebase
+  // Si no, agregar servicios adicionales de Firebase
+  const services: Service[] = baseServices.map(baseService => {
+    const firebaseService = firebaseServices.find(
+      fs => fs.name === baseService.name && (fs.isActive !== false)
+    );
+    return {
+      ...baseService,
+      firebaseId: firebaseService?.id,
+    };
+  });
+
+  // Agregar servicios de Firebase que no están en la lista base
+  firebaseServices.forEach(fs => {
+    if (fs.isActive !== false && !services.find(s => s.name === fs.name)) {
+      // Asignar icono por defecto según el nombre
+      let icon = Sparkle;
+      if (fs.name.toLowerCase().includes('corte')) icon = Scissors;
+      else if (fs.name.toLowerCase().includes('color')) icon = Palette;
+      else if (fs.name.toLowerCase().includes('peinado')) icon = Sparkles;
+      else if (fs.name.toLowerCase().includes('manicure') || fs.name.toLowerCase().includes('uña')) icon = Hand;
+      else if (fs.name.toLowerCase().includes('tratamiento')) icon = Heart;
+
+      services.push({
+        id: fs.name.toLowerCase().replace(/\s+/g, '-'),
+        name: fs.name,
+        icon,
+        description: fs.description || 'Servicio profesional',
+        firebaseId: fs.id,
+      });
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="w-full"
+      >
+        <div className="mb-6">
+          <h2 className="text-2xl sm:text-3xl font-bold font-display text-white mb-2">
+            Selecciona tu servicio
+          </h2>
+          <p className="text-gray-400">Cargando servicios...</p>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -75,7 +152,8 @@ export default function StepService({ selectedService, onSelect }: StepServicePr
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {services.map((service, index) => {
           const Icon = service.icon;
-          const isSelected = selectedService === service.id;
+          // Comparar tanto con el ID base como con el firebaseId
+          const isSelected = selectedService === service.id || selectedService === service.firebaseId;
 
           return (
             <motion.button
@@ -85,7 +163,7 @@ export default function StepService({ selectedService, onSelect }: StepServicePr
               transition={{ delay: index * 0.05 }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => onSelect(service.id)}
+              onClick={() => onSelect(service.firebaseId || service.id)}
               className={`
                 relative p-6 rounded-xl border-2 transition-all duration-300 text-left
                 bg-[#151414] hover:bg-[#1a1a1a]

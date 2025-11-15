@@ -1,9 +1,14 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock } from 'lucide-react';
+import { db } from '../../lib/firebase';
+import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 
 interface StepDateProps {
+  selectedStylist: string | null;
+  selectedService: string | null;
   selectedDate: string | null;
   selectedTime: string | null;
   onSelectDate: (date: string) => void;
@@ -22,18 +27,22 @@ const generateDates = () => {
   return dates;
 };
 
-const timeSlots = [
-  '09:00',
-  '10:00',
-  '11:00',
-  '12:00',
-  '13:00',
-  '14:00',
-  '15:00',
-  '16:00',
-  '17:00',
-  '18:00',
-];
+// Generar slots de 30 minutos desde las 11:00 hasta las 20:00 (como en la app de escritorio)
+const generateTimeSlots = () => {
+  const slots = [];
+  for (let i = 11 * 60; i < 20 * 60; i += 30) {
+    const hours = Math.floor(i / 60);
+    const minutes = i % 60;
+    slots.push(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
+  }
+  return slots;
+};
+
+const timeSlots = generateTimeSlots();
+
+// Días de la semana (igual que en la app de escritorio - EN INGLÉS)
+// La app de escritorio guarda los schedules con nombres en inglés
+const DAYS_OF_WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const months = [
@@ -52,12 +61,19 @@ const months = [
 ];
 
 export default function StepDate({
+  selectedStylist,
+  selectedService,
   selectedDate,
   selectedTime,
   onSelectDate,
   onSelectTime,
 }: StepDateProps) {
   const dates = generateDates();
+  const [workerSchedule, setWorkerSchedule] = useState<any>(null);
+  const [workerName, setWorkerName] = useState<string>('');
+  const [existingAppointments, setExistingAppointments] = useState<any[]>([]);
+  const [serviceDuration, setServiceDuration] = useState<number>(60); // Duración por defecto en minutos
+  const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
 
   const formatDate = (date: Date) => {
     return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
@@ -70,6 +86,190 @@ export default function StepDate({
       date.getMonth() === today.getMonth() &&
       date.getFullYear() === today.getFullYear()
     );
+  };
+
+  // Cargar nombre del worker y su schedule
+  useEffect(() => {
+    const loadWorkerData = async () => {
+      if (!selectedStylist) {
+        setWorkerSchedule(null);
+        setWorkerName('');
+        return;
+      }
+
+      setIsLoadingSchedule(true);
+      try {
+        // Obtener el worker
+        const workerRef = doc(db, 'workers', selectedStylist);
+        const workerSnap = await getDoc(workerRef);
+        
+        if (workerSnap.exists()) {
+          const workerData = workerSnap.data();
+          const name = workerData.name || '';
+          setWorkerName(name);
+
+          // Obtener el schedule del worker
+          const scheduleRef = doc(db, 'workerSchedules', name);
+          const scheduleSnap = await getDoc(scheduleRef);
+          
+          if (scheduleSnap.exists()) {
+            setWorkerSchedule(scheduleSnap.data());
+          } else {
+            // Si no tiene schedule, usar horario por defecto (11:00 - 20:00 todos los días)
+            // IMPORTANTE: usar nombres en inglés como la app de escritorio
+            setWorkerSchedule({
+              schedule: {
+                monday: { isEnabled: true, start: '11:00', end: '20:00' },
+                tuesday: { isEnabled: true, start: '11:00', end: '20:00' },
+                wednesday: { isEnabled: true, start: '11:00', end: '20:00' },
+                thursday: { isEnabled: true, start: '11:00', end: '20:00' },
+                friday: { isEnabled: true, start: '11:00', end: '20:00' },
+                saturday: { isEnabled: true, start: '11:00', end: '20:00' },
+                sunday: { isEnabled: true, start: '11:00', end: '20:00' },
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando datos del worker:', error);
+      } finally {
+        setIsLoadingSchedule(false);
+      }
+    };
+
+    loadWorkerData();
+  }, [selectedStylist]);
+
+  // Cargar duración del servicio
+  useEffect(() => {
+    const loadServiceDuration = async () => {
+      if (!selectedService) {
+        setServiceDuration(60);
+        return;
+      }
+
+      try {
+        const serviceNameMap: Record<string, string> = {
+          'corte': 'Corte de Cabello',
+          'coloracion': 'Coloración',
+          'peinado': 'Peinado',
+          'manicure': 'Manicure',
+          'tratamiento': 'Tratamiento Capilar',
+          'premium': 'Servicios Premium',
+        };
+        
+        const serviceDisplayName = serviceNameMap[selectedService] || selectedService;
+        const servicesQuery = query(collection(db, 'services'), where('name', '==', serviceDisplayName));
+        const servicesSnapshot = await getDocs(servicesQuery);
+        
+        if (!servicesSnapshot.empty) {
+          const serviceData = servicesSnapshot.docs[0].data();
+          setServiceDuration(serviceData.duration || 60);
+        } else {
+          setServiceDuration(60);
+        }
+      } catch (error) {
+        console.error('Error cargando duración del servicio:', error);
+        setServiceDuration(60);
+      }
+    };
+
+    loadServiceDuration();
+  }, [selectedService]);
+
+  // Cargar appointments existentes cuando cambia la fecha
+  useEffect(() => {
+    const loadAppointments = async () => {
+      if (!selectedDate || !workerName) {
+        setExistingAppointments([]);
+        return;
+      }
+
+      try {
+        const date = new Date(selectedDate);
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const appointmentsQuery = query(
+          collection(db, 'appointments'),
+          where('startTime', '>=', Timestamp.fromDate(startOfDay)),
+          where('startTime', '<=', Timestamp.fromDate(endOfDay))
+        );
+
+        const snapshot = await getDocs(appointmentsQuery);
+        const allAppointments = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          startTime: doc.data().startTime.toDate(),
+          endTime: doc.data().endTime.toDate(),
+        }));
+
+        // Filtrar por performedBy en el código (más eficiente que múltiples where)
+        const appointments = allAppointments.filter(app => app.performedBy === workerName);
+        setExistingAppointments(appointments);
+      } catch (error) {
+        console.error('Error cargando appointments:', error);
+        setExistingAppointments([]);
+      }
+    };
+
+    loadAppointments();
+  }, [selectedDate, workerName]);
+
+  // Verificar si un horario está disponible
+  const isTimeSlotAvailable = (timeSlot: string): boolean => {
+    if (!selectedDate || !workerSchedule || !workerName) return false;
+
+    const date = new Date(selectedDate);
+    const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1; // Ajustar para que Lunes = 0
+    const dayName = DAYS_OF_WEEK[dayIndex];
+    const daySchedule = workerSchedule.schedule?.[dayName];
+
+    // Verificar si el día está habilitado
+    if (!daySchedule || !daySchedule.isEnabled) return false;
+
+    // Verificar si el horario está dentro del rango del worker
+    const [slotHours, slotMinutes] = timeSlot.split(':').map(Number);
+    const [startHours, startMinutes] = daySchedule.start.split(':').map(Number);
+    const [endHours, endMinutes] = daySchedule.end.split(':').map(Number);
+
+    const slotTotalMinutes = slotHours * 60 + slotMinutes;
+    const startTotalMinutes = startHours * 60 + startMinutes;
+    const endTotalMinutes = endHours * 60 + endMinutes;
+
+    if (slotTotalMinutes < startTotalMinutes || slotTotalMinutes >= endTotalMinutes) {
+      return false;
+    }
+
+    // Verificar que el servicio completo quepa en el horario
+    const slotEndMinutes = slotTotalMinutes + serviceDuration;
+    if (slotEndMinutes > endTotalMinutes) {
+      return false;
+    }
+
+    // Verificar conflictos con appointments existentes
+    const slotTime = new Date(date);
+    slotTime.setHours(slotHours, slotMinutes, 0, 0);
+    const slotEndTime = new Date(slotTime.getTime() + serviceDuration * 60000);
+
+    for (const appointment of existingAppointments) {
+      // Verificar si hay solapamiento
+      if (
+        (slotTime >= appointment.startTime && slotTime < appointment.endTime) ||
+        (slotEndTime > appointment.startTime && slotEndTime <= appointment.endTime) ||
+        (slotTime <= appointment.startTime && slotEndTime >= appointment.endTime)
+      ) {
+        // Ignorar conflictos solo si el appointment está cancelado
+        // Los appointments 'blocked', 'pending', 'confirmed', 'completed' bloquean el horario
+        if (appointment.status !== 'cancelled') {
+          return false;
+        }
+      }
+    }
+
+    return true;
   };
 
   return (
@@ -134,7 +334,19 @@ export default function StepDate({
       </div>
 
       {/* Time Selection */}
-      {selectedDate && (
+      {!selectedStylist && (
+        <div className="text-center py-8 text-gray-500">
+          <p>Primero selecciona un estilista</p>
+        </div>
+      )}
+
+      {selectedStylist && !selectedDate && (
+        <div className="text-center py-8 text-gray-500">
+          <p>Primero selecciona una fecha</p>
+        </div>
+      )}
+
+      {selectedStylist && selectedDate && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -143,11 +355,13 @@ export default function StepDate({
           <div className="flex items-center space-x-2 mb-4">
             <Clock className="w-5 h-5 text-[#c9a857]" />
             <h3 className="text-lg font-semibold text-white">Hora</h3>
+            {isLoadingSchedule && (
+              <span className="text-sm text-gray-400 ml-2">(Cargando disponibilidad...)</span>
+            )}
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
             {timeSlots.map((time, index) => {
-              // Simulate some unavailable slots
-              const isAvailable = index % 4 !== 2;
+              const isAvailable = isTimeSlotAvailable(time);
               const isSelected = selectedTime === time;
 
               if (!isAvailable) {
@@ -156,6 +370,7 @@ export default function StepDate({
                     key={time}
                     disabled
                     className="p-3 rounded-lg border-2 border-[#151414] bg-[#0f0f0f] text-gray-600 cursor-not-allowed"
+                    title="Horario no disponible"
                   >
                     {time}
                   </button>
@@ -186,12 +401,6 @@ export default function StepDate({
             })}
           </div>
         </motion.div>
-      )}
-
-      {!selectedDate && (
-        <div className="text-center py-8 text-gray-500">
-          <p>Primero selecciona una fecha</p>
-        </div>
       )}
     </motion.div>
   );

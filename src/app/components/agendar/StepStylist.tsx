@@ -1,41 +1,15 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User } from 'lucide-react';
+import { db } from '../../lib/firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
 
-interface Stylist {
+interface Worker {
   id: string;
   name: string;
-  specialty: string;
-  image: string;
 }
-
-const stylists: Stylist[] = [
-  {
-    id: '1',
-    name: 'María González',
-    specialty: 'Estilista Senior',
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop',
-  },
-  {
-    id: '2',
-    name: 'Carlos Rodríguez',
-    specialty: 'Estilista Master',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-  },
-  {
-    id: '3',
-    name: 'Ana Martínez',
-    specialty: 'Peinadora Especialista',
-    image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop',
-  },
-  {
-    id: '4',
-    name: 'Laura Sánchez',
-    specialty: 'Colorista Certificada',
-    image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop',
-  },
-];
 
 interface StepStylistProps {
   selectedStylist: string | null;
@@ -43,6 +17,25 @@ interface StepStylistProps {
 }
 
 export default function StepStylist({ selectedStylist, onSelect }: StepStylistProps) {
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Leer workers dinámicamente desde Firebase
+    const unsubscribe = onSnapshot(collection(db, 'workers'), (snapshot) => {
+      const workersList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name || 'Sin nombre',
+      }));
+      setWorkers(workersList);
+      setIsLoading(false);
+    }, (error) => {
+      console.error('Error cargando workers:', error);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -60,19 +53,28 @@ export default function StepStylist({ selectedStylist, onSelect }: StepStylistPr
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        {stylists.map((stylist, index) => {
-          const isSelected = selectedStylist === stylist.id;
+      {isLoading ? (
+        <div className="text-center py-8">
+          <p className="text-gray-400">Cargando estilistas...</p>
+        </div>
+      ) : workers.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-gray-400">No hay estilistas disponibles</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {workers.map((worker, index) => {
+            const isSelected = selectedStylist === worker.id;
 
           return (
             <motion.button
-              key={stylist.id}
+              key={worker.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => onSelect(stylist.id)}
+              onClick={() => onSelect(worker.id)}
               className={`
                 relative p-6 rounded-xl border-2 transition-all duration-300 text-left
                 bg-[#151414] hover:bg-[#1a1a1a]
@@ -113,11 +115,9 @@ export default function StepStylist({ selectedStylist, onSelect }: StepStylistPr
                       ${isSelected ? 'border-[#c9a857]' : 'border-[#151414]'}
                     `}
                   >
-                    <img
-                      src={stylist.image}
-                      alt={stylist.name}
-                      className="w-full h-full object-cover"
-                    />
+                    <div className="w-full h-full bg-[#c9a857] flex items-center justify-center">
+                      <User className="w-10 h-10 text-[#1c1b1b]" />
+                    </div>
                   </div>
                   {isSelected && (
                     <motion.div
@@ -136,15 +136,16 @@ export default function StepStylist({ selectedStylist, onSelect }: StepStylistPr
                       isSelected ? 'text-[#c9a857]' : 'text-white'
                     }`}
                   >
-                    {stylist.name}
+                    {worker.name}
                   </h3>
-                  <p className="text-sm text-gray-400">{stylist.specialty}</p>
+                  <p className="text-sm text-gray-400">Estilista Profesional</p>
                 </div>
               </div>
             </motion.button>
           );
         })}
-      </div>
+        </div>
+      )}
     </motion.div>
   );
 }
