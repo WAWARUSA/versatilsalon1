@@ -140,7 +140,8 @@ export default function StepDate({
           const scheduleSnap = await getDoc(scheduleRef);
           
           if (scheduleSnap.exists()) {
-            setWorkerSchedule(scheduleSnap.data());
+            const scheduleData = scheduleSnap.data() as WorkerSchedule;
+            setWorkerSchedule(scheduleData);
           } else {
             // Si no tiene schedule, usar horario por defecto (11:00 - 20:00 todos los días)
             // IMPORTANTE: usar nombres en inglés como la app de escritorio
