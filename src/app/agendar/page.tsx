@@ -78,6 +78,10 @@ export default function AgendarPage() {
 
   const handleConfirm = async () => {
     if (isSubmitting) return;
+    if (!db) {
+      console.error('Firebase no está inicializado');
+      return;
+    }
     setIsSubmitting(true);
 
     try {

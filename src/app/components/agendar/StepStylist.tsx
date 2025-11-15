@@ -21,6 +21,10 @@ export default function StepStylist({ selectedStylist, onSelect }: StepStylistPr
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!db) {
+      setIsLoading(false);
+      return;
+    }
     // Leer workers dinámicamente desde Firebase
     const unsubscribe = onSnapshot(collection(db, 'workers'), (snapshot) => {
       const workersList = snapshot.docs.map(doc => ({

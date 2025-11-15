@@ -75,6 +75,10 @@ export default function StepService({ selectedService, onSelect }: StepServicePr
 
   // Cargar servicios desde Firebase
   useEffect(() => {
+    if (!db) {
+      setIsLoading(false);
+      return;
+    }
     const unsubscribe = onSnapshot(collection(db, 'services'), (snapshot) => {
       const services = snapshot.docs.map(doc => ({
         id: doc.id,

@@ -119,6 +119,11 @@ export default function StepDate({
         return;
       }
 
+      if (!db) {
+        setIsLoadingSchedule(false);
+        return;
+      }
+
       setIsLoadingSchedule(true);
       try {
         // Obtener el worker
@@ -170,6 +175,11 @@ export default function StepDate({
         return;
       }
 
+      if (!db) {
+        setServiceDuration(60);
+        return;
+      }
+
       try {
         const serviceNameMap: Record<string, string> = {
           'corte': 'Corte de Cabello',
@@ -203,6 +213,11 @@ export default function StepDate({
   useEffect(() => {
     const loadAppointments = async () => {
       if (!selectedDate || !workerName) {
+        setExistingAppointments([]);
+        return;
+      }
+
+      if (!db) {
         setExistingAppointments([]);
         return;
       }
