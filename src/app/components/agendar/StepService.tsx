@@ -80,10 +80,17 @@ export default function StepService({ selectedService, onSelect }: StepServicePr
       return;
     }
     const unsubscribe = onSnapshot(collection(db, 'services'), (snapshot) => {
-      const services = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const services: FirebaseService[] = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: (data.name as string) || '',
+          duration: data.duration as number | undefined,
+          price: data.price as number | undefined,
+          isActive: data.isActive as boolean | undefined,
+          ...data,
+        } as FirebaseService;
+      });
       setFirebaseServices(services);
       setIsLoading(false);
     }, (error) => {
