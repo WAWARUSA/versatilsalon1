@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User } from 'lucide-react';
-import { db } from '../../lib/firebase';
+import { db } from '../../../lib/firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 
 interface Worker {

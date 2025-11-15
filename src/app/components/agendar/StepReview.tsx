@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Calendar, Clock, User, Scissors, Mail, Phone } from 'lucide-react';
-import { db } from '../../lib/firebase';
+import { db } from '../../../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 interface StepReviewProps {
