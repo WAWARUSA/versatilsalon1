@@ -257,6 +257,15 @@ export default function StepDate({
         const appointments = allAppointments.filter(app => 
           app.performedBy === workerName && app.status !== 'cancelled'
         );
+        
+        // Debug: mostrar información de los appointments cargados
+        console.log(`[DEBUG] Cargados ${allAppointments.length} appointments totales para ${selectedDate}`);
+        console.log(`[DEBUG] Worker: "${workerName}"`);
+        console.log(`[DEBUG] Appointments filtrados: ${appointments.length}`);
+        appointments.forEach(app => {
+          console.log(`[DEBUG] - Appointment: ${app.startTime.toLocaleString()} - ${app.endTime.toLocaleString()}, Status: ${app.status}, PerformedBy: "${app.performedBy}"`);
+        });
+        
         setExistingAppointments(appointments);
       } catch (error) {
         console.error('Error cargando appointments:', error);
@@ -300,9 +309,16 @@ export default function StepDate({
     }
 
     // Verificar conflictos con appointments existentes
-    const slotTime = new Date(date);
+    // Crear fecha del slot sin problemas de zona horaria
+    const slotDate = new Date(selectedDate + 'T00:00:00');
+    const slotTime = new Date(slotDate);
     slotTime.setHours(slotHours, slotMinutes, 0, 0);
     const slotEndTime = new Date(slotTime.getTime() + serviceDuration * 60000);
+
+    // Debug: mostrar cuántos appointments hay
+    if (existingAppointments.length > 0) {
+      console.log(`[DEBUG] Verificando ${existingAppointments.length} appointments para ${timeSlot}`);
+    }
 
     for (const appointment of existingAppointments) {
       // Ignorar solo appointments cancelados
@@ -310,24 +326,29 @@ export default function StepDate({
         continue;
       }
 
-      const appStart = appointment.startTime;
-      const appEnd = appointment.endTime;
+      const appStart = new Date(appointment.startTime);
+      const appEnd = new Date(appointment.endTime);
+
+      // Normalizar fechas a medianoche para comparar solo la hora
+      const appStartDate = new Date(appStart);
+      appStartDate.setFullYear(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
+      
+      const appEndDate = new Date(appEnd);
+      appEndDate.setFullYear(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
 
       // Verificar si hay solapamiento de horarios
-      // Hay conflicto si:
-      // 1. El slot empieza dentro del appointment (slotTime >= appStart && slotTime < appEnd)
-      // 2. El slot termina dentro del appointment (slotEndTime > appStart && slotEndTime <= appEnd)
-      // 3. El slot contiene completamente el appointment (slotTime <= appStart && slotEndTime >= appEnd)
-      // 4. El slot empieza exactamente cuando termina el appointment (slotTime < appEnd && slotEndTime > appStart)
-      
-      const hasOverlap = (
-        (slotTime.getTime() >= appStart.getTime() && slotTime.getTime() < appEnd.getTime()) ||
-        (slotEndTime.getTime() > appStart.getTime() && slotEndTime.getTime() <= appEnd.getTime()) ||
-        (slotTime.getTime() <= appStart.getTime() && slotEndTime.getTime() >= appEnd.getTime()) ||
-        (slotTime.getTime() < appEnd.getTime() && slotEndTime.getTime() > appStart.getTime())
-      );
+      // Hay conflicto si los rangos de tiempo se solapan de cualquier manera
+      const slotStartTime = slotTime.getTime();
+      const slotEndTimeMs = slotEndTime.getTime();
+      const appStartTime = appStartDate.getTime();
+      const appEndTime = appEndDate.getTime();
+
+      // Verificar solapamiento: dos rangos se solapan si:
+      // slotStart < appEnd && slotEnd > appStart
+      const hasOverlap = slotStartTime < appEndTime && slotEndTimeMs > appStartTime;
 
       if (hasOverlap) {
+        console.log(`[DEBUG] CONFLICTO detectado: Slot ${timeSlot} (${slotTime.toLocaleTimeString()}-${slotEndTime.toLocaleTimeString()}) se solapa con appointment ${appStartDate.toLocaleTimeString()}-${appEndDate.toLocaleTimeString()}`);
         return false; // Hay conflicto, el horario no está disponible
       }
     }
