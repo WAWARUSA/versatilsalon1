@@ -254,9 +254,14 @@ export default function StepDate({
 
         // Filtrar por performedBy en el código (más eficiente que múltiples where)
         // Solo incluir appointments que pertenezcan al worker y que no estén cancelados
-        const appointments = allAppointments.filter(app => 
-          app.performedBy === workerName && app.status !== 'cancelled'
-        );
+        // Usar trim() y comparación case-insensitive para evitar problemas de espacios/Mayúsculas
+        const appointments = allAppointments.filter(app => {
+          const appPerformedBy = (app.performedBy || '').trim();
+          const workerNameTrimmed = (workerName || '').trim();
+          const matches = appPerformedBy.toLowerCase() === workerNameTrimmed.toLowerCase();
+          const isNotCancelled = app.status !== 'cancelled';
+          return matches && isNotCancelled;
+        });
         
         // Debug: mostrar información de los appointments cargados
         console.log(`[DEBUG] ========== CARGANDO APPOINTMENTS ==========`);
@@ -337,7 +342,10 @@ export default function StepDate({
 
     for (const appointment of existingAppointments) {
       // Ignorar solo appointments cancelados
-      if (appointment.status === 'cancelled') {
+      // Todos los demás estados (confirmed, completed, blocked, pending) bloquean el horario
+      const status = (appointment.status || 'confirmed').toLowerCase();
+      if (status === 'cancelled') {
+        console.log(`[DEBUG]   Ignorando appointment cancelado`);
         continue;
       }
 
