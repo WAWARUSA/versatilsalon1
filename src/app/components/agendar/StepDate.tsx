@@ -259,12 +259,23 @@ export default function StepDate({
         );
         
         // Debug: mostrar información de los appointments cargados
-        console.log(`[DEBUG] Cargados ${allAppointments.length} appointments totales para ${selectedDate}`);
-        console.log(`[DEBUG] Worker: "${workerName}"`);
-        console.log(`[DEBUG] Appointments filtrados: ${appointments.length}`);
-        appointments.forEach(app => {
-          console.log(`[DEBUG] - Appointment: ${app.startTime.toLocaleString()} - ${app.endTime.toLocaleString()}, Status: ${app.status}, PerformedBy: "${app.performedBy}"`);
+        console.log(`[DEBUG] ========== CARGANDO APPOINTMENTS ==========`);
+        console.log(`[DEBUG] Fecha seleccionada: ${selectedDate}`);
+        console.log(`[DEBUG] Worker Name buscado: "${workerName}"`);
+        console.log(`[DEBUG] Total appointments en el día: ${allAppointments.length}`);
+        console.log(`[DEBUG] Appointments filtrados (performedBy === workerName): ${appointments.length}`);
+        
+        // Mostrar todos los appointments para debug
+        allAppointments.forEach(app => {
+          const matches = app.performedBy === workerName;
+          console.log(`[DEBUG] - Appointment: ${app.startTime.toLocaleString()} - ${app.endTime.toLocaleString()}`);
+          console.log(`[DEBUG]   Status: ${app.status}, PerformedBy: "${app.performedBy}"`);
+          console.log(`[DEBUG]   ¿Coincide con "${workerName}"? ${matches ? '✅ SÍ' : '❌ NO'}`);
         });
+        
+        if (appointments.length === 0 && allAppointments.length > 0) {
+          console.warn(`[DEBUG] ⚠️ Hay ${allAppointments.length} appointments pero ninguno coincide con el worker "${workerName}"`);
+        }
         
         setExistingAppointments(appointments);
       } catch (error) {
@@ -274,7 +285,7 @@ export default function StepDate({
     };
 
     loadAppointments();
-  }, [selectedDate, workerName]);
+  }, [selectedDate, workerName, db]);
 
   // Verificar si un horario está disponible
   const isTimeSlotAvailable = (timeSlot: string): boolean => {
@@ -316,8 +327,12 @@ export default function StepDate({
     const slotEndTime = new Date(slotTime.getTime() + serviceDuration * 60000);
 
     // Debug: mostrar cuántos appointments hay
-    if (existingAppointments.length > 0) {
-      console.log(`[DEBUG] Verificando ${existingAppointments.length} appointments para ${timeSlot}`);
+    console.log(`[DEBUG] ========== VERIFICANDO DISPONIBILIDAD ==========`);
+    console.log(`[DEBUG] Horario: ${timeSlot}`);
+    console.log(`[DEBUG] Appointments a verificar: ${existingAppointments.length}`);
+    
+    if (existingAppointments.length === 0) {
+      console.log(`[DEBUG] ✅ No hay appointments, horario disponible`);
     }
 
     for (const appointment of existingAppointments) {
@@ -352,11 +367,17 @@ export default function StepDate({
       const hasOverlap = slotStartMinutes < appEndMinutes && slotEndMinutes > appStartMinutes;
 
       if (hasOverlap) {
-        console.log(`[DEBUG] CONFLICTO detectado: Slot ${timeSlot} (${slotStartMinutes}min-${slotEndMinutes}min) se solapa con appointment ${appStartMinutes}min-${appEndMinutes}min`);
+        console.log(`[DEBUG] ❌ CONFLICTO DETECTADO:`);
+        console.log(`[DEBUG]   Slot: ${timeSlot} (${slotStartMinutes}min - ${slotEndMinutes}min)`);
+        console.log(`[DEBUG]   Appointment: ${appStartMinutes}min - ${appEndMinutes}min`);
+        console.log(`[DEBUG]   Status: ${appointment.status}`);
         return false; // Hay conflicto, el horario no está disponible
+      } else {
+        console.log(`[DEBUG] ✅ Sin conflicto: Slot ${timeSlot} no se solapa con appointment ${appStartMinutes}min-${appEndMinutes}min`);
       }
     }
 
+    console.log(`[DEBUG] ✅ Horario ${timeSlot} DISPONIBLE`);
     return true;
   };
 
