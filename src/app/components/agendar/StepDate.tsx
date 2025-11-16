@@ -55,10 +55,10 @@ const generateDates = () => {
   return dates;
 };
 
-// Generar slots de 30 minutos desde las 11:00 hasta las 20:00 (como en la app de escritorio)
+// Generar slots de 30 minutos desde las 11:00 hasta las 19:00 (como en la app de escritorio)
 const generateTimeSlots = () => {
   const slots = [];
-  for (let i = 11 * 60; i < 20 * 60; i += 30) {
+  for (let i = 11 * 60; i <= 19 * 60; i += 30) {
     const hours = Math.floor(i / 60);
     const minutes = i % 60;
     slots.push(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
