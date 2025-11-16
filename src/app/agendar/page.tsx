@@ -179,8 +179,8 @@ export default function AgendarPage() {
       }
 
       const [hours, minutes] = selectedTime.split(':').map(Number);
-      const startTime = new Date(selectedDate);
-      startTime.setHours(hours, minutes, 0, 0);
+      // Crear fecha usando la fecha seleccionada y la hora
+      const startTime = new Date(selectedDate + 'T' + selectedTime + ':00');
       const endTime = new Date(startTime.getTime() + serviceDuration * 60000);
 
       // 4. Buscar el estilista en Firebase usando el ID directamente
@@ -209,7 +209,7 @@ export default function AgendarPage() {
         serviceName,
         startTime: Timestamp.fromDate(startTime),
         endTime: Timestamp.fromDate(endTime),
-        status: 'pending', // Estado pendiente para que la jefa lo confirme
+        status: 'confirmed', // Estado confirmado para que aparezca en la app de escritorio
         notes: formData.comentario || `Reserva desde portal web. Estilista solicitado: ${performedBy}`,
         performedBy,
         price: servicePrice,
