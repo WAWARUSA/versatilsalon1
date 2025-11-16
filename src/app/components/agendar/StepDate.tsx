@@ -40,6 +40,7 @@ interface Appointment {
   startTime: Date;
   endTime: Date;
   performedBy: string;
+  status?: string; // 'confirmed', 'completed', 'cancelled', 'blocked', 'pending'
   [key: string]: unknown;
 }
 
@@ -246,12 +247,16 @@ export default function StepDate({
             startTime: data.startTime.toDate(),
             endTime: data.endTime.toDate(),
             performedBy: (data.performedBy as string) || '',
+            status: (data.status as string) || 'confirmed', // Por defecto 'confirmed' si no tiene status
             ...data,
           } as Appointment;
         });
 
         // Filtrar por performedBy en el código (más eficiente que múltiples where)
-        const appointments = allAppointments.filter(app => app.performedBy === workerName);
+        // Solo incluir appointments que pertenezcan al worker y que no estén cancelados
+        const appointments = allAppointments.filter(app => 
+          app.performedBy === workerName && app.status !== 'cancelled'
+        );
         setExistingAppointments(appointments);
       } catch (error) {
         console.error('Error cargando appointments:', error);
@@ -300,17 +305,30 @@ export default function StepDate({
     const slotEndTime = new Date(slotTime.getTime() + serviceDuration * 60000);
 
     for (const appointment of existingAppointments) {
-      // Verificar si hay solapamiento
-      if (
-        (slotTime >= appointment.startTime && slotTime < appointment.endTime) ||
-        (slotEndTime > appointment.startTime && slotEndTime <= appointment.endTime) ||
-        (slotTime <= appointment.startTime && slotEndTime >= appointment.endTime)
-      ) {
-        // Ignorar conflictos solo si el appointment está cancelado
-        // Los appointments 'blocked', 'pending', 'confirmed', 'completed' bloquean el horario
-        if (appointment.status !== 'cancelled') {
-          return false;
-        }
+      // Ignorar solo appointments cancelados
+      if (appointment.status === 'cancelled') {
+        continue;
+      }
+
+      const appStart = appointment.startTime;
+      const appEnd = appointment.endTime;
+
+      // Verificar si hay solapamiento de horarios
+      // Hay conflicto si:
+      // 1. El slot empieza dentro del appointment (slotTime >= appStart && slotTime < appEnd)
+      // 2. El slot termina dentro del appointment (slotEndTime > appStart && slotEndTime <= appEnd)
+      // 3. El slot contiene completamente el appointment (slotTime <= appStart && slotEndTime >= appEnd)
+      // 4. El slot empieza exactamente cuando termina el appointment (slotTime < appEnd && slotEndTime > appStart)
+      
+      const hasOverlap = (
+        (slotTime.getTime() >= appStart.getTime() && slotTime.getTime() < appEnd.getTime()) ||
+        (slotEndTime.getTime() > appStart.getTime() && slotEndTime.getTime() <= appEnd.getTime()) ||
+        (slotTime.getTime() <= appStart.getTime() && slotEndTime.getTime() >= appEnd.getTime()) ||
+        (slotTime.getTime() < appEnd.getTime() && slotEndTime.getTime() > appStart.getTime())
+      );
+
+      if (hasOverlap) {
+        return false; // Hay conflicto, el horario no está disponible
       }
     }
 

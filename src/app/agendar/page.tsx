@@ -179,8 +179,12 @@ export default function AgendarPage() {
       }
 
       const [hours, minutes] = selectedTime.split(':').map(Number);
-      // Crear fecha usando la fecha seleccionada y la hora
-      const startTime = new Date(selectedDate + 'T' + selectedTime + ':00');
+      // Crear fecha en hora local para evitar problemas de zona horaria
+      const dateParts = selectedDate.split('-');
+      const year = parseInt(dateParts[0]);
+      const month = parseInt(dateParts[1]) - 1; // Los meses en JS son 0-indexed
+      const day = parseInt(dateParts[2]);
+      const startTime = new Date(year, month, day, hours, minutes, 0, 0);
       const endTime = new Date(startTime.getTime() + serviceDuration * 60000);
 
       // 4. Buscar el estilista en Firebase usando el ID directamente
