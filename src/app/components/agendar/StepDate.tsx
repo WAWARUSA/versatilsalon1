@@ -309,7 +309,7 @@ export default function StepDate({
     }
 
     // Verificar conflictos con appointments existentes
-    // Crear fecha del slot sin problemas de zona horaria
+    // Crear fecha del slot
     const slotDate = new Date(selectedDate + 'T00:00:00');
     const slotTime = new Date(slotDate);
     slotTime.setHours(slotHours, slotMinutes, 0, 0);
@@ -326,29 +326,33 @@ export default function StepDate({
         continue;
       }
 
+      // Obtener fechas del appointment
       const appStart = new Date(appointment.startTime);
       const appEnd = new Date(appointment.endTime);
 
-      // Normalizar fechas a medianoche para comparar solo la hora
-      const appStartDate = new Date(appStart);
-      appStartDate.setFullYear(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
-      
-      const appEndDate = new Date(appEnd);
-      appEndDate.setFullYear(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
+      // Comparar solo la fecha (sin hora) para verificar que sea el mismo día
+      const slotDateOnly = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
+      const appStartDateOnly = new Date(appStart.getFullYear(), appStart.getMonth(), appStart.getDate());
+      const appEndDateOnly = new Date(appEnd.getFullYear(), appEnd.getMonth(), appEnd.getDate());
 
-      // Verificar si hay solapamiento de horarios
-      // Hay conflicto si los rangos de tiempo se solapan de cualquier manera
-      const slotStartTime = slotTime.getTime();
-      const slotEndTimeMs = slotEndTime.getTime();
-      const appStartTime = appStartDate.getTime();
-      const appEndTime = appEndDate.getTime();
+      // Si el appointment no es del mismo día, ignorarlo
+      if (appStartDateOnly.getTime() !== slotDateOnly.getTime() && appEndDateOnly.getTime() !== slotDateOnly.getTime()) {
+        continue;
+      }
+
+      // Extraer solo horas y minutos para comparar
+      const slotStartMinutes = slotHours * 60 + slotMinutes;
+      const slotEndMinutes = slotStartMinutes + serviceDuration;
+      
+      const appStartMinutes = appStart.getHours() * 60 + appStart.getMinutes();
+      const appEndMinutes = appEnd.getHours() * 60 + appEnd.getMinutes();
 
       // Verificar solapamiento: dos rangos se solapan si:
       // slotStart < appEnd && slotEnd > appStart
-      const hasOverlap = slotStartTime < appEndTime && slotEndTimeMs > appStartTime;
+      const hasOverlap = slotStartMinutes < appEndMinutes && slotEndMinutes > appStartMinutes;
 
       if (hasOverlap) {
-        console.log(`[DEBUG] CONFLICTO detectado: Slot ${timeSlot} (${slotTime.toLocaleTimeString()}-${slotEndTime.toLocaleTimeString()}) se solapa con appointment ${appStartDate.toLocaleTimeString()}-${appEndDate.toLocaleTimeString()}`);
+        console.log(`[DEBUG] CONFLICTO detectado: Slot ${timeSlot} (${slotStartMinutes}min-${slotEndMinutes}min) se solapa con appointment ${appStartMinutes}min-${appEndMinutes}min`);
         return false; // Hay conflicto, el horario no está disponible
       }
     }
