@@ -288,6 +288,7 @@ export default function StepDate({
     }
 
     // Verificar que el servicio completo quepa en el horario
+    // Permitir que termine exactamente a la hora de cierre (>= en lugar de >)
     const slotEndMinutes = slotTotalMinutes + serviceDuration;
     if (slotEndMinutes > endTotalMinutes) {
       return false;
