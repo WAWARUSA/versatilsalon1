@@ -27,6 +27,24 @@ Las reservas del portal web se guardan con la siguiente estructura:
 }
 ```
 
+### Colección: `services`
+Los servicios deben incluir información sobre qué profesionales pueden realizarlos:
+
+```javascript
+{
+  name: string,               // Nombre del servicio (ej: "Corte de Cabello")
+  description: string,        // Descripción del servicio
+  duration: number,           // Duración en minutos
+  price: number,              // Precio del servicio
+  isActive: boolean,          // Si el servicio está activo
+  workerIds: [string],        // Array con IDs de workers que realizan este servicio
+  createdAt: Timestamp,       // Fecha de creación
+  updatedAt: Timestamp        // Fecha de última actualización
+}
+```
+
+**⚠️ IMPORTANTE**: El campo `workerIds` es un array que contiene los IDs de los documentos de workers que pueden realizar ese servicio. Si este campo está vacío o no existe, todos los profesionales estarán disponibles para ese servicio.
+
 ### Colección: `clients`
 Si el cliente no existe, se crea automáticamente:
 
@@ -38,6 +56,20 @@ Si el cliente no existe, se crea automáticamente:
   email: string,              // Email
   notes: string,              // Notas adicionales
   createdAt: Timestamp        // Fecha de creación
+}
+```
+
+### Colección: `workers`
+Los profesionales/estilistas del salón:
+
+```javascript
+{
+  name: string,               // Nombre del profesional
+  phone: string,              // Teléfono (opcional)
+  email: string,              // Email (opcional)
+  isActive: boolean,          // Si el profesional está activo
+  createdAt: Timestamp,       // Fecha de creación
+  updatedAt: Timestamp        // Fecha de última actualización
 }
 ```
 
@@ -110,12 +142,46 @@ El portal web usa IDs de estilistas que se mapean a nombres:
 
 ## Flujo de Reserva
 
-1. El cliente completa el formulario en el portal web
-2. El sistema busca o crea el cliente en Firebase (basado en el teléfono)
-3. El sistema busca el servicio en Firebase
-4. El sistema calcula la fecha/hora de inicio y fin
-5. Se crea el appointment con estado `pending`
-6. La jefa del local puede ver la reserva en la app de escritorio y confirmarla
+1. El cliente selecciona un servicio en el paso 1
+2. En el paso 2, el sistema carga los `workerIds` del servicio seleccionado desde Firebase
+3. Los profesionales que NO están en `workerIds` aparecen bloqueados/deshabilitados
+4. El cliente solo puede seleccionar profesionales que realizan ese servicio
+5. El cliente completa el resto del formulario
+6. El sistema busca o crea el cliente en Firebase (basado en el teléfono)
+7. Se crea el appointment con estado `pending`
+8. La jefa del local puede ver la reserva en la app de escritorio y confirmarla
+
+## Configuración de Servicios y Profesionales
+
+### Cómo asignar profesionales a un servicio
+
+En Firebase, cada documento de la colección `services` debe tener un campo `workerIds` que es un array con los IDs de los profesionales que pueden realizar ese servicio:
+
+**Ejemplo:**
+```javascript
+// Servicio: Corte de Cabello
+{
+  name: "Corte de Cabello",
+  description: "Cortes modernos y clásicos",
+  duration: 60,
+  price: 15000,
+  isActive: true,
+  workerIds: ["worker123", "worker456"], // Solo estos dos profesionales pueden hacer cortes
+  createdAt: Timestamp,
+  updatedAt: Timestamp
+}
+```
+
+### Comportamiento del filtrado:
+
+- **Si `workerIds` contiene IDs**: Solo los profesionales en ese array estarán disponibles (no bloqueados)
+- **Si `workerIds` está vacío `[]` o no existe**: Todos los profesionales estarán disponibles
+- **Profesionales bloqueados**: Aparecen con:
+  - Fondo más oscuro y con menor opacidad
+  - Icono de candado en la esquina superior derecha
+  - Texto "No realiza este servicio"
+  - No son clickeables (cursor no permitido)
+  - Efecto de escala de grises en la imagen
 
 ## Estado de las Reservas
 

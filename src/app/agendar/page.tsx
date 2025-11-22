@@ -248,6 +248,7 @@ export default function AgendarPage() {
           <StepStylist
             selectedStylist={selectedStylist}
             onSelect={setSelectedStylist}
+            selectedService={selectedService}
           />
         );
       case 3:
