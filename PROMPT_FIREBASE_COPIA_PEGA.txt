@@ -1,0 +1,47 @@
+Necesito ayuda para verificar y diseñar la estructura de datos en Firestore para un sistema de reservas de salón de belleza.
+
+CONTEXTO DEL PROBLEMA:
+- Tengo una aplicación de escritorio (VersatilSalon) que gestiona trabajadores y servicios
+- Tengo un portal web que debe filtrar trabajadores según el servicio seleccionado
+- El portal web lee desde la colección 'workers' usando onSnapshot
+- Actualmente, cuando selecciono "Servicios Premium" aparecen 5 trabajadores, pero solo 2 deberían aparecer según los datos de la app de escritorio
+
+INFORMACIÓN QUE PUEDO COMPARTIR:
+Puedo proporcionarte:
+- Ejemplos de documentos de la colección 'workers' (campos y valores)
+- Ejemplos de documentos de la colección 'services' (campos y valores)
+- Las reglas de seguridad actuales de Firestore
+- Cómo la app de escritorio almacena/actualiza esta información
+
+NECESITO QUE ME AYUDES A:
+
+1. DISEÑAR LA ESTRUCTURA ÓPTIMA:
+   - ¿Cuál es la mejor estructura para relacionar trabajadores con servicios en Firestore?
+   - ¿Debo usar un array 'serviceIds' dentro de cada documento de 'workers'?
+   - ¿Qué formato debo usar para los IDs? (ID del documento del servicio, string como "premium", o ambos)
+
+2. VERIFICAR LA CONFIGURACIÓN ACTUAL:
+   - Basándote en las reglas de seguridad que puedo compartir, ¿hay alguna restricción que impida leer/escribir el campo 'services' o 'serviceIds'?
+   - ¿Las reglas actuales permiten que la app de escritorio actualice este campo?
+
+3. DISEÑAR LA CONSULTA EFICIENTE:
+   - ¿Cómo debo estructurar la consulta en el portal web para filtrar trabajadores por servicio?
+   - ¿Debo usar 'array-contains' o hay una mejor forma?
+   - Considerando que uso el plan Spark (gratuito), ¿cuál es la opción más eficiente en términos de lecturas?
+
+4. SINCRONIZACIÓN CON APP DE ESCRITORIO:
+   - ¿Cómo debo configurar la app de escritorio para que actualice automáticamente el campo de servicios cuando se asigne/desasigne un servicio a un trabajador?
+   - ¿Debo usar update() con merge: true o set() con merge: true?
+
+5. VALIDACIÓN Y CONSISTENCIA:
+   - ¿Cómo puedo asegurar que los serviceIds en 'workers' correspondan a IDs existentes en 'services'?
+   - ¿Debo usar Cloud Functions para validar esto o hay una mejor práctica?
+
+POR FAVOR:
+- Guíame sobre la estructura de datos recomendada
+- Ayúdame a diseñar las consultas eficientes
+- Proporcióname ejemplos de código para implementar la sincronización
+- Indícame qué debo verificar manualmente en Firebase Console
+
+¿Qué información específica necesitas que te comparta primero para ayudarme mejor?
+

@@ -1,0 +1,210 @@
+@import "tailwindcss";
+
+:root {
+  --background: #1c1b1b;
+  --foreground: #ffffff;
+  --gold-primary: #c9a857;
+  --gold-secondary: #d4af37;
+  --dark-bg: #1c1b1b;
+  --darker-bg: #151414;
+}
+
+:root {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-poppins);
+  --font-display: var(--font-playfair);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-poppins), sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-playfair), serif;
+}
+
+.font-display {
+  font-family: var(--font-playfair), serif;
+}
+
+/* Custom Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gradientX {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+.animate-gradient-x {
+  background-size: 200% 200%;
+  animation: gradientX 3s ease infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.animation-delay-200 {
+  animation-delay: 0.2s;
+}
+
+.animation-delay-400 {
+  animation-delay: 0.4s;
+}
+
+.animation-delay-600 {
+  animation-delay: 0.6s;
+}
+
+.animation-delay-800 {
+  animation-delay: 0.8s;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #fbbf24, #f59e0b);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #f59e0b, #d97706);
+}
+
+
+/* src/app/globals.css */
+
+/* --- Estilos para la página de Cortes --- */
+
+/* Estilo para la sección del título */
+.hero-cortes {
+  text-align: center;
+  padding: 4rem 1rem;
+  background-color: #f9f9f9; /* Un fondo suave para destacar la sección */
+}
+
+.hero-cortes h1 {
+  font-size: clamp(2.5rem, 5vw, 3.5rem);
+  margin-bottom: 0.5rem;
+}
+
+.hero-cortes p {
+  font-size: 1.1rem;
+  color: #666;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Estilo para la galería de imágenes */
+.cortes-gallery {
+  padding: 4rem 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* La rejilla (grid) que ordena las tarjetas */
+.cortes-grid {
+  display: grid;
+  /* Esto crea columnas que se ajustan solas al tamaño de la pantalla. ¡Es responsivo! */
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem; /* Espacio entre las tarjetas */
+}
+
+/* Estilo para cada tarjeta de servicio */
+.corte-card {
+  border: 1px solid #eee;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden; /* Asegura que la imagen no se salga de los bordes redondeados */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.corte-card:hover {
+  transform: translateY(-5px); /* Efecto de levitar al pasar el mouse */
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.corte-card img {
+  width: 100%;
+  height: auto;
+  display: block; /* Elimina un pequeño espacio debajo de la imagen */
+}
+
+.corte-card .card-content {
+  padding: 1.5rem;
+}
+
+.corte-card h2 {
+  font-size: 1.5rem;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.corte-card p {
+  color: #555;
+  line-height: 1.6;
+}
+
+.corte-card .price {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #c2185b; /* Un color magenta para el precio */
+  margin-top: 1rem;
+  text-align: right;
+}

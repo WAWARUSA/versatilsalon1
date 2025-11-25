@@ -1,0 +1,97 @@
+Aquí está la información que solicitaste:
+
+=== INSTRUCCIONES ===
+Por favor, completa las secciones marcadas con [COMPLETAR AQUÍ] con datos reales de tu Firebase Console.
+
+=== 1. EJEMPLOS REALES DE DOCUMENTOS DE workers (2-3 documentos) ===
+
+INSTRUCCIÓN: Ve a Firebase Console > Firestore Database > colección 'workers' y copia el contenido JSON completo de 2-3 documentos. Incluye el ID de cada documento.
+
+=== WORKER 1 ===
+ID del documento: [COMPLETAR AQUÍ - copia el ID exacto del documento]
+Contenido JSON completo:
+[COMPLETAR AQUÍ - pega aquí el JSON completo del documento, incluyendo todos los campos]
+
+=== WORKER 2 ===
+ID del documento: [COMPLETAR AQUÍ]
+Contenido JSON completo:
+[COMPLETAR AQUÍ]
+
+=== WORKER 3 ===
+ID del documento: [COMPLETAR AQUÍ]
+Contenido JSON completo:
+[COMPLETAR AQUÍ]
+
+=== 2. EJEMPLOS REALES DE DOCUMENTOS DE services (2-3 documentos) ===
+
+INSTRUCCIÓN: Ve a Firebase Console > Firestore Database > colección 'services'. Es CRUCIAL que incluyas el documento de "Servicios Premium" con su ID exacto.
+
+=== SERVICE "Servicios Premium" (MUY IMPORTANTE) ===
+ID del documento: [COMPLETAR AQUÍ - copia el ID exacto, esto es crucial]
+Contenido JSON completo:
+[COMPLETAR AQUÍ - pega aquí el JSON completo del documento]
+
+=== SERVICE 2 ===
+ID del documento: [COMPLETAR AQUÍ]
+Contenido JSON completo:
+[COMPLETAR AQUÍ]
+
+=== SERVICE 3 ===
+ID del documento: [COMPLETAR AQUÍ]
+Contenido JSON completo:
+[COMPLETAR AQUÍ]
+
+=== 3. REGLAS DE SEGURIDAD REALES DE FIRESTORE ===
+
+INSTRUCCIÓN: Ve a Firebase Console > Firestore Database > pestaña "Reglas" y copia TODO el contenido del editor de reglas.
+
+[COMPLETAR AQUÍ - pega aquí todo el contenido de las reglas de seguridad actuales]
+
+=== 4. INFORMACIÓN SOBRE APP DE ESCRITORIO ===
+
+INSTRUCCIÓN: Responde estas preguntas con lo que sepas o creas (tu mejor estimación):
+
+1. ¿La app de escritorio actualiza directamente el campo 'services' en los documentos de 'workers' cuando asignas/desasignas un servicio?
+   Respuesta: [COMPLETAR AQUÍ - Sí / No / No estoy seguro]
+
+2. Si sí, ¿qué campo actualiza exactamente?
+   Respuesta: [COMPLETAR AQUÍ - services / serviceIds / Otro: _______]
+
+3. Si no, ¿dónde guarda esta información la app de escritorio?
+   Respuesta: [COMPLETAR AQUÍ - Base de datos local / Otra colección de Firebase / No lo sé]
+
+4. Para el servicio "Servicios Premium", ¿cuántos trabajadores tienen este servicio asignado según la app de escritorio?
+   Respuesta: [COMPLETAR AQUÍ - Ya confirmaste: 2 trabajadores]
+
+5. ¿Qué formato usa la app de escritorio para identificar servicios al asignarlos a un trabajador?
+   Respuesta: [COMPLETAR AQUÍ - ID del documento / Nombre del servicio / Ambos / No lo sé]
+
+=== CONTEXTO DEL PROBLEMA ===
+
+- Cuando selecciono "Servicios Premium" en el portal web, aparecen 5 trabajadores
+- Pero según la app de escritorio, solo 2 trabajadores deberían tener este servicio
+- Esto sugiere que:
+  * El campo 'services' no existe en los documentos de 'workers', O
+  * El campo 'services' no se está actualizando desde la app de escritorio, O
+  * Hay un problema de sincronización
+
+=== INFORMACIÓN ADICIONAL SOBRE EL PORTAL WEB ===
+
+- El portal web solo LEE de Firebase (no escribe en workers ni services)
+- Usa onSnapshot para cambios en tiempo real
+- Lee todos los workers y filtra en el cliente
+- Campos que lee de workers: name (string), services (array opcional)
+- Campos que lee de services: name, duration, price, isActive
+- Identificación de servicios: por ID del documento, campo 'name', o mapeo interno
+
+Volumen de datos: Probablemente 5-20 trabajadores, 5-10 servicios (salón pequeño/mediano)
+
+=== LO QUE ESPERO RECIBIR DE TI ===
+
+Una vez que completes las secciones [COMPLETAR AQUÍ] con los datos reales de Firebase Console, podré:
+- Analizar tu estructura actual y sugerir mejoras
+- Revisar tus reglas de seguridad para asegurar la permisividad adecuada
+- Diseñar las consultas más eficientes para tu portal web
+- Brindarte orientación y ejemplos de código para la sincronización desde tu app de escritorio
+- Discutir estrategias de validación y consistencia
+
