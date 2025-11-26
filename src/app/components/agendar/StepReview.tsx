@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Calendar, Clock, User, Scissors, Mail, Phone } from 'lucide-react';
 import { db } from '../../../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 interface StepReviewProps {
   selectedService: string;
@@ -39,6 +39,7 @@ export default function StepReview({
 }: StepReviewProps) {
   const [stylistName, setStylistName] = useState<string>('Cargando...');
   const [serviceName, setServiceName] = useState<string>('Cargando...');
+  const [servicePrice, setServicePrice] = useState<number | null>(null);
 
   // Cargar el nombre del servicio desde Firebase
   useEffect(() => {
@@ -94,6 +95,92 @@ export default function StepReview({
       setStylistName('No seleccionado');
     }
   }, [selectedStylist]);
+
+  // Cargar el precio del servicio asociado al estilista seleccionado
+  useEffect(() => {
+    const fetchServicePrice = async () => {
+      if (!selectedService || !selectedStylist || !db) {
+        setServicePrice(null);
+        return;
+      }
+
+      try {
+        const selectedStylistTrimmed = selectedStylist.trim();
+        let serviceNameToSearch: string | null = null;
+        
+        // Primero intentar buscar el servicio por ID directo
+        const serviceRef = doc(db, 'services', selectedService);
+        const serviceSnap = await getDoc(serviceRef);
+        
+        if (serviceSnap.exists()) {
+          const serviceData = serviceSnap.data();
+          const workerIds = serviceData.workerIds || [];
+          
+          // Verificar si el estilista está en la lista de workerIds
+          const hasWorker = Array.isArray(workerIds) && workerIds.some(id => String(id).trim() === selectedStylistTrimmed);
+          
+          if (hasWorker) {
+            // El estilista está en este servicio, usar su precio
+            const price = serviceData.price || 0;
+            setServicePrice(typeof price === 'number' ? price : 0);
+            return;
+          }
+          
+          // Si el estilista no está en este servicio, guardar el nombre para buscar variaciones
+          serviceNameToSearch = serviceData.name || null;
+        }
+
+        // Si no se encontró el servicio por ID o el estilista no está en ese servicio,
+        // buscar servicios por nombre y encontrar el que tiene el estilista
+        if (!serviceNameToSearch) {
+          // Usar el mapeo estático como fallback
+          serviceNameToSearch = serviceNames[selectedService] || null;
+        }
+        
+        if (!serviceNameToSearch) {
+          setServicePrice(null);
+          return;
+        }
+
+        // Buscar todos los servicios con este nombre (puede haber variaciones con diferentes estilistas)
+        const servicesRef = collection(db, 'services');
+        const servicesSnapshot = await getDocs(query(servicesRef, where('name', '==', serviceNameToSearch)));
+        
+        if (!servicesSnapshot.empty) {
+          // Buscar el servicio específico que tiene el estilista seleccionado
+          for (const serviceDoc of servicesSnapshot.docs) {
+            const serviceData = serviceDoc.data();
+            const workerIds = serviceData.workerIds || [];
+            
+            if (Array.isArray(workerIds)) {
+              const hasWorker = workerIds.some(id => String(id).trim() === selectedStylistTrimmed);
+              if (hasWorker) {
+                // Encontrado el servicio que tiene este estilista, usar su precio
+                const price = serviceData.price || 0;
+                if (typeof price === 'number') {
+                  setServicePrice(price);
+                  console.log(`Precio encontrado para estilista ${selectedStylistTrimmed}: $${price} (servicio: ${serviceDoc.id})`);
+                  return;
+                }
+              }
+            }
+          }
+          
+          // Si no se encuentra un servicio específico para el estilista, no mostrar precio
+          console.log(`No se encontró un servicio con el estilista ${selectedStylistTrimmed} en ${servicesSnapshot.docs.length} servicios con nombre "${serviceNameToSearch}"`);
+          setServicePrice(null);
+        } else {
+          console.log(`No se encontraron servicios con nombre "${serviceNameToSearch}"`);
+          setServicePrice(null);
+        }
+      } catch (error) {
+        console.error('Error cargando precio del servicio:', error);
+        setServicePrice(null);
+      }
+    };
+
+    fetchServicePrice();
+  }, [selectedService, selectedStylist]);
 
   const formatDate = (dateStr: string) => {
     // Parsear la fecha sin problemas de zona horaria
@@ -194,6 +281,18 @@ export default function StepReview({
             </div>
           )}
         </div>
+
+        {/* Service Price */}
+        {servicePrice !== null && servicePrice > 0 && (
+          <div className="bg-[#151414] border border-[#c9a857]/20 rounded-xl p-6">
+            <p className="text-gray-300">
+              Precio estimado del servicio:{' '}
+              <span className="text-[#c9a857] font-bold text-lg">
+                ${servicePrice.toLocaleString('es-CL')}
+              </span>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Confirm Button */}

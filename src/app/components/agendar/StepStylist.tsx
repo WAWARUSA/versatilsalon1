@@ -34,6 +34,7 @@ export default function StepStylist({ selectedStylist, selectedService, onSelect
   const [isLoading, setIsLoading] = useState(true);
   const [serviceName, setServiceName] = useState<string | null>(null);
   const [serviceWorkerIds, setServiceWorkerIds] = useState<string[]>([]);
+  const [workerPrices, setWorkerPrices] = useState<Record<string, number>>({}); // Mapa de workerId -> price
 
   // Cargar el servicio desde Firebase y obtener los workerIds
   useEffect(() => {
@@ -57,13 +58,19 @@ export default function StepStylist({ selectedStylist, selectedService, onSelect
           // Obtener workerIds del servicio encontrado
           const workerIds = serviceData.workerIds || [];
           const allWorkerIds: string[] = [];
+          const pricesMap: Record<string, number> = {};
           
-          // Agregar los workerIds del servicio encontrado
+          // Agregar los workerIds del servicio encontrado y sus precios
           if (Array.isArray(workerIds)) {
             workerIds.forEach(id => {
               const cleanedId = String(id).trim();
               if (cleanedId.length > 0 && !allWorkerIds.includes(cleanedId)) {
                 allWorkerIds.push(cleanedId);
+                // Asignar el precio de este servicio a cada worker
+                const price = serviceData.price || 0;
+                if (typeof price === 'number' && price > 0) {
+                  pricesMap[cleanedId] = price;
+                }
               }
             });
           }
@@ -77,11 +84,18 @@ export default function StepStylist({ selectedStylist, selectedService, onSelect
               if (serviceDoc.id !== selectedService) {
                 const variationData = serviceDoc.data();
                 const variationWorkerIds = variationData.workerIds || [];
+                const variationPrice = variationData.price || 0;
                 if (Array.isArray(variationWorkerIds)) {
                   variationWorkerIds.forEach(id => {
                     const cleanedId = String(id).trim();
                     if (cleanedId.length > 0 && !allWorkerIds.includes(cleanedId)) {
                       allWorkerIds.push(cleanedId);
+                    }
+                    // Asignar el precio de esta variación al worker si no tiene precio aún o si este servicio tiene este worker
+                    if (typeof variationPrice === 'number' && variationPrice > 0) {
+                      if (!pricesMap[cleanedId] || variationWorkerIds.includes(cleanedId)) {
+                        pricesMap[cleanedId] = variationPrice;
+                      }
                     }
                   });
                 }
@@ -90,13 +104,16 @@ export default function StepStylist({ selectedStylist, selectedService, onSelect
             console.log(`Servicio encontrado por ID. Total de servicios con nombre "${serviceNameFound}": ${servicesSnapshot.docs.length}`);
           }
           
+          setWorkerPrices(pricesMap);
           console.log('Todos los workerIds combinados (por ID + variaciones):', allWorkerIds);
+          console.log('Precios por worker:', pricesMap);
           setServiceWorkerIds(allWorkerIds);
         } else {
           // Si no se encuentra por ID, buscar por nombre usando el mapeo
           const mappedName = serviceNameMap[selectedService];
           setServiceName(mappedName || selectedService);
           setServiceWorkerIds([]);
+          setWorkerPrices({});
           
           // Buscar TODOS los servicios con ese nombre (puede haber variaciones)
           if (mappedName) {
@@ -105,9 +122,13 @@ export default function StepStylist({ selectedStylist, selectedService, onSelect
             if (!servicesSnapshot.empty) {
               // Combinar todos los workerIds de todos los servicios con ese nombre
               const allWorkerIds: string[] = [];
+              const pricesMap: Record<string, number> = {};
+              
+              // Primero, recopilar todos los workers de todos los servicios
               servicesSnapshot.docs.forEach(serviceDoc => {
                 const serviceData = serviceDoc.data();
                 const workerIds = serviceData.workerIds || [];
+                
                 if (Array.isArray(workerIds)) {
                   workerIds.forEach(id => {
                     const cleanedId = String(id).trim();
@@ -117,7 +138,28 @@ export default function StepStylist({ selectedStylist, selectedService, onSelect
                   });
                 }
               });
+              
+              // Luego, para cada worker, encontrar el servicio que lo tiene y asignar su precio
+              allWorkerIds.forEach(workerId => {
+                for (const serviceDoc of servicesSnapshot.docs) {
+                  const serviceData = serviceDoc.data();
+                  const workerIds = serviceData.workerIds || [];
+                  const price = serviceData.price || 0;
+                  
+                  if (Array.isArray(workerIds)) {
+                    const hasWorker = workerIds.some(id => String(id).trim() === workerId);
+                    if (hasWorker && typeof price === 'number' && price > 0) {
+                      // Este servicio tiene este worker, usar su precio
+                      pricesMap[workerId] = price;
+                      break; // Usar el primer servicio encontrado que tiene este worker
+                    }
+                  }
+                }
+              });
+              
+              setWorkerPrices(pricesMap);
               console.log(`Encontrados ${servicesSnapshot.docs.length} servicios con nombre "${mappedName}"`);
+              console.log('Precios por worker:', pricesMap);
               console.log('Todos los workerIds combinados:', allWorkerIds);
               setServiceWorkerIds(allWorkerIds);
             }
@@ -129,11 +171,12 @@ export default function StepStylist({ selectedStylist, selectedService, onSelect
         const mappedName = serviceNameMap[selectedService];
         setServiceName(mappedName || selectedService);
         setServiceWorkerIds([]);
+        setWorkerPrices({});
       }
     };
 
     loadService();
-  }, [selectedService]);
+  }, [selectedService, selectedStylist]);
 
   // Cargar workers desde Firebase
   useEffect(() => {
@@ -338,6 +381,11 @@ export default function StepStylist({ selectedStylist, selectedService, onSelect
                     {worker.name}
                   </h3>
                   <p className="text-sm text-gray-400">Estilista Profesional</p>
+                  {workerPrices[worker.id] !== undefined && workerPrices[worker.id] > 0 && (
+                    <p className="text-sm text-[#c9a857] font-medium mt-1">
+                      ${workerPrices[worker.id].toLocaleString('es-CL')}
+                    </p>
+                  )}
                 </div>
               </div>
             </motion.button>
