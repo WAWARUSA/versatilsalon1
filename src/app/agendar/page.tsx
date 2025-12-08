@@ -240,10 +240,10 @@ export default function AgendarPage() {
         // - El nuevo appointment contiene completamente el existente
         // - El existente contiene completamente el nuevo appointment
         const hasOverlap = (
-          (startTime >= appStartTime && startTime < appEndTime) ||
-          (endTime > appStartTime && endTime <= appEndTime) ||
-          (startTime <= appStartTime && endTime >= appEndTime) ||
-          (startTime >= appStartTime && endTime <= appEndTime)
+          (startTime.getTime() >= appStartTime.getTime() && startTime.getTime() < appEndTime.getTime()) ||
+          (endTime.getTime() > appStartTime.getTime() && endTime.getTime() <= appEndTime.getTime()) ||
+          (startTime.getTime() <= appStartTime.getTime() && endTime.getTime() >= appEndTime.getTime()) ||
+          (appStartTime.getTime() <= startTime.getTime() && appEndTime.getTime() >= endTime.getTime())
         );
         
         return hasOverlap;

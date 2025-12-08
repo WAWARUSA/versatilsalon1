@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Calendar, Clock } from 'lucide-react';
 import { db } from '../../../lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import SelectHour from './SelectHour';
 
 interface StepDateProps {
   selectedStylist: string | null;
@@ -287,24 +288,33 @@ export default function StepDate({
 
         // Filtrar por performedBy en el código
         const workerNameTrimmed = (workerName || '').trim().toLowerCase();
-        console.log('👤 Buscando appointments para trabajador:', workerNameTrimmed);
+        console.log('👤 Buscando appointments para trabajador:', {
+          workerNameOriginal: workerName,
+          workerNameTrimmed: workerNameTrimmed,
+          totalAppointments: allAppointments.length
+        });
 
         const appointments = allAppointments.filter(app => {
           const appPerformedBy = (app.performedBy || '').trim().toLowerCase();
           const matches = appPerformedBy === workerNameTrimmed;
-          const isNotCancelled = (app.status || 'confirmed').toLowerCase() !== 'cancelled';
+          const status = (app.status || 'confirmed').toLowerCase();
+          const isNotCancelled = status !== 'cancelled';
           
-          if (matches) {
+          if (matches && isNotCancelled) {
             const startDate = app.startTime instanceof Date ? app.startTime : new Date(app.startTime);
             const endDate = app.endTime instanceof Date ? app.endTime : new Date(app.endTime);
-            console.log('✅ Appointment MATCH encontrado:', {
+            console.log('✅ Appointment MATCH encontrado (OCUPARÁ HORARIO):', {
+              id: app.id,
               performedBy: app.performedBy,
               workerName: workerName,
-              match: matches,
               status: app.status,
-              isNotCancelled: isNotCancelled,
               start: `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`,
               end: `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`
+            });
+          } else if (matches && !isNotCancelled) {
+            console.log('⏭️ Appointment MATCH pero CANCELADO (ignorando):', {
+              performedBy: app.performedBy,
+              status: app.status
             });
           } else if (appPerformedBy) {
             console.log('❌ Appointment NO MATCH:', {
@@ -363,10 +373,15 @@ export default function StepDate({
         return;
       }
 
-      const slotStartMinutes = slotTotalMinutes;
-      const slotEndMinutes = slotStartMinutes + serviceDuration;
+      // Calcular el rango del bloque de 30 minutos
+      const blockStartMinutes = slotTotalMinutes;
+      const blockEndMinutes = blockStartMinutes + 30;
 
-      if (slotEndMinutes > endTotalMinutes) {
+      // Calcular el rango del servicio completo
+      const serviceStartMinutes = slotTotalMinutes;
+      const serviceEndMinutes = serviceStartMinutes + serviceDuration;
+
+      if (serviceEndMinutes > endTotalMinutes) {
         onSelectTime('');
         return;
       }
@@ -397,14 +412,23 @@ export default function StepDate({
         const appStartMinutes = appStart.getHours() * 60 + appStart.getMinutes();
         const appEndMinutes = appEnd.getHours() * 60 + appEnd.getMinutes();
 
-        const hasOverlap = (
-          (slotStartMinutes >= appStartMinutes && slotStartMinutes < appEndMinutes) ||
-          (slotEndMinutes > appStartMinutes && slotEndMinutes <= appEndMinutes) ||
-          (slotStartMinutes <= appStartMinutes && slotEndMinutes >= appEndMinutes) ||
-          (appStartMinutes <= slotStartMinutes && appEndMinutes >= slotEndMinutes)
+        // Verificar si el bloque de 30 minutos se solapa
+        const blockOverlaps = (
+          (blockStartMinutes >= appStartMinutes && blockStartMinutes < appEndMinutes) ||
+          (blockEndMinutes > appStartMinutes && blockEndMinutes <= appEndMinutes) ||
+          (blockStartMinutes <= appStartMinutes && blockEndMinutes >= appEndMinutes) ||
+          (appStartMinutes <= blockStartMinutes && appEndMinutes >= blockEndMinutes)
         );
 
-        if (hasOverlap) {
+        // Verificar si el servicio completo se solapa
+        const serviceOverlaps = (
+          (serviceStartMinutes >= appStartMinutes && serviceStartMinutes < appEndMinutes) ||
+          (serviceEndMinutes > appStartMinutes && serviceEndMinutes <= appEndMinutes) ||
+          (serviceStartMinutes <= appStartMinutes && serviceEndMinutes >= appEndMinutes) ||
+          (appStartMinutes <= serviceStartMinutes && appEndMinutes >= serviceEndMinutes)
+        );
+
+        if (blockOverlaps || serviceOverlaps) {
           console.log(`El horario seleccionado ${selectedTime} ya no está disponible, limpiando selección`);
           onSelectTime('');
           return;
@@ -452,12 +476,16 @@ export default function StepDate({
       return false;
     }
 
-    // Calcular minutos del slot (se usará para verificar que quepa y para conflictos)
-    const slotStartMinutes = slotTotalMinutes;
-    const slotEndMinutes = slotStartMinutes + serviceDuration;
+    // Calcular el rango del bloque de 30 minutos (independiente de la duración del servicio)
+    const blockStartMinutes = slotTotalMinutes;
+    const blockEndMinutes = blockStartMinutes + 30; // Cada bloque es de 30 minutos
+
+    // Calcular el rango del servicio completo si se selecciona este bloque
+    const serviceStartMinutes = slotTotalMinutes;
+    const serviceEndMinutes = serviceStartMinutes + serviceDuration;
 
     // Verificar que el servicio completo quepa en el horario
-    if (slotEndMinutes > endTotalMinutes) {
+    if (serviceEndMinutes > endTotalMinutes) {
       return false;
     }
 
@@ -510,20 +538,33 @@ export default function StepDate({
       const appStartMinutes = appStart.getHours() * 60 + appStart.getMinutes();
       const appEndMinutes = appEnd.getHours() * 60 + appEnd.getMinutes();
 
-      console.log(`   📊 Comparando: Slot ${timeSlot} (${slotStartMinutes}-${slotEndMinutes}) vs Appointment (${appStartMinutes}-${appEndMinutes})`);
+      console.log(`   📊 Comparando: Bloque ${timeSlot} (${blockStartMinutes}-${blockEndMinutes}) y Servicio (${serviceStartMinutes}-${serviceEndMinutes}) vs Appointment (${appStartMinutes}-${appEndMinutes})`);
 
-      // Verificar solapamiento - MÁS ESTRICTO
-      const hasOverlap = (
-        (slotStartMinutes >= appStartMinutes && slotStartMinutes < appEndMinutes) ||
-        (slotEndMinutes > appStartMinutes && slotEndMinutes <= appEndMinutes) ||
-        (slotStartMinutes <= appStartMinutes && slotEndMinutes >= appEndMinutes) ||
-        (appStartMinutes <= slotStartMinutes && appEndMinutes >= slotEndMinutes)
+      // Verificar si el bloque de 30 minutos se solapa con el appointment
+      // Esto bloquea el bloque independientemente de la duración del servicio
+      const blockOverlaps = (
+        (blockStartMinutes >= appStartMinutes && blockStartMinutes < appEndMinutes) ||
+        (blockEndMinutes > appStartMinutes && blockEndMinutes <= appEndMinutes) ||
+        (blockStartMinutes <= appStartMinutes && blockEndMinutes >= appEndMinutes) ||
+        (appStartMinutes <= blockStartMinutes && appEndMinutes >= blockEndMinutes)
       );
 
-      if (hasOverlap) {
+      // También verificar si el servicio completo se solapa con el appointment
+      // Esto asegura que no se pueda seleccionar un bloque si el servicio completo se solapa
+      const serviceOverlaps = (
+        (serviceStartMinutes >= appStartMinutes && serviceStartMinutes < appEndMinutes) ||
+        (serviceEndMinutes > appStartMinutes && serviceEndMinutes <= appEndMinutes) ||
+        (serviceStartMinutes <= appStartMinutes && serviceEndMinutes >= appEndMinutes) ||
+        (appStartMinutes <= serviceStartMinutes && appEndMinutes >= serviceEndMinutes)
+      );
+
+      if (blockOverlaps || serviceOverlaps) {
         console.log(`🚫 ${timeSlot} BLOQUEADO - Solapamiento detectado:`, {
-          slot: `${timeSlot} (${slotStartMinutes}-${slotEndMinutes} min)`,
+          bloque: `${timeSlot} bloque (${blockStartMinutes}-${blockEndMinutes} min)`,
+          servicio: `${timeSlot} servicio (${serviceStartMinutes}-${serviceEndMinutes} min)`,
           appointment: `${String(appStart.getHours()).padStart(2, '0')}:${String(appStart.getMinutes()).padStart(2, '0')} - ${String(appEnd.getHours()).padStart(2, '0')}:${String(appEnd.getMinutes()).padStart(2, '0')} (${appStartMinutes}-${appEndMinutes} min)`,
+          bloqueSolapa: blockOverlaps,
+          servicioSolapa: serviceOverlaps,
           status: appointment.status,
           performedBy: appointment.performedBy
         });
@@ -579,10 +620,16 @@ export default function StepDate({
         return;
       }
 
-      const slotStartMinutes = slotTotalMinutes;
-      const slotEndMinutes = slotStartMinutes + serviceDuration;
+      // Calcular el rango del bloque de 30 minutos (independiente de la duración del servicio)
+      const blockStartMinutes = slotTotalMinutes;
+      const blockEndMinutes = blockStartMinutes + 30; // Cada bloque es de 30 minutos
 
-      if (slotEndMinutes > endTotalMinutes) {
+      // Calcular el rango del servicio completo si se selecciona este bloque
+      const serviceStartMinutes = slotTotalMinutes;
+      const serviceEndMinutes = serviceStartMinutes + serviceDuration;
+
+      // Verificar que el servicio completo quepa en el horario del trabajador
+      if (serviceEndMinutes > endTotalMinutes) {
         availability[time] = false;
         return;
       }
@@ -618,17 +665,29 @@ export default function StepDate({
         const appStartMinutes = appStart.getHours() * 60 + appStart.getMinutes();
         const appEndMinutes = appEnd.getHours() * 60 + appEnd.getMinutes();
 
-        const hasOverlap = (
-          (slotStartMinutes >= appStartMinutes && slotStartMinutes < appEndMinutes) ||
-          (slotEndMinutes > appStartMinutes && slotEndMinutes <= appEndMinutes) ||
-          (slotStartMinutes <= appStartMinutes && slotEndMinutes >= appEndMinutes) ||
-          (appStartMinutes <= slotStartMinutes && appEndMinutes >= slotEndMinutes)
+        // Verificar si el bloque de 30 minutos se solapa con el appointment
+        // Esto bloquea el bloque independientemente de la duración del servicio
+        const blockOverlaps = (
+          (blockStartMinutes >= appStartMinutes && blockStartMinutes < appEndMinutes) ||
+          (blockEndMinutes > appStartMinutes && blockEndMinutes <= appEndMinutes) ||
+          (blockStartMinutes <= appStartMinutes && blockEndMinutes >= appEndMinutes) ||
+          (appStartMinutes <= blockStartMinutes && appEndMinutes >= blockEndMinutes)
         );
 
-        if (hasOverlap) {
+        // También verificar si el servicio completo se solapa con el appointment
+        // Esto asegura que no se pueda seleccionar un bloque si el servicio completo se solapa
+        const serviceOverlaps = (
+          (serviceStartMinutes >= appStartMinutes && serviceStartMinutes < appEndMinutes) ||
+          (serviceEndMinutes > appStartMinutes && serviceEndMinutes <= appEndMinutes) ||
+          (serviceStartMinutes <= appStartMinutes && serviceEndMinutes >= appEndMinutes) ||
+          (appStartMinutes <= serviceStartMinutes && appEndMinutes >= serviceEndMinutes)
+        );
+
+        if (blockOverlaps || serviceOverlaps) {
           hasConflict = true;
           console.log(`🚫 [MEMO] ${time} BLOQUEADO por appointment ${appStart.getHours()}:${String(appStart.getMinutes()).padStart(2, '0')}-${appEnd.getHours()}:${String(appEnd.getMinutes()).padStart(2, '0')}`);
-          console.log(`   Detalles: slot(${slotStartMinutes}-${slotEndMinutes}) vs app(${appStartMinutes}-${appEndMinutes})`);
+          console.log(`   Bloque (${blockStartMinutes}-${blockEndMinutes}) solapa: ${blockOverlaps}`);
+          console.log(`   Servicio (${serviceStartMinutes}-${serviceEndMinutes}) solapa: ${serviceOverlaps}`);
           break;
         }
       }
@@ -745,110 +804,13 @@ export default function StepDate({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <div className="flex items-center space-x-2 mb-4">
-            <Clock className="w-5 h-5 text-[#c9a857]" />
-            <h3 className="text-lg font-semibold text-white">Hora</h3>
-            {isLoadingSchedule && (
-              <span className="text-sm text-gray-400 ml-2">(Cargando disponibilidad...)</span>
-            )}
-            {!isLoadingSchedule && workerName && (
-              <span className="text-xs text-gray-500 ml-2">
-                ({existingAppointments.length} ocupado{existingAppointments.length !== 1 ? 's' : ''})
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-3" key={`timeslots-${refreshKey}`}>
-            {(() => {
-              // Debug completo del objeto de disponibilidad
-              console.log('🔍 [DEBUG] timeSlotAvailability:', JSON.stringify(timeSlotAvailability, null, 2));
-              console.log('🔍 [DEBUG] existingAppointments:', existingAppointments);
-              
-              // Filtrar solo horarios disponibles (estricto: solo true)
-              const slotsDisponibles = timeSlots.filter(time => {
-                const disponible = timeSlotAvailability[time];
-                // Verificación múltiple
-                const esBoolean = typeof disponible === 'boolean';
-                const esTrue = disponible === true;
-                const mostrar = esBoolean && esTrue;
-                
-                console.log(`🔍 [FILTRO] ${time}: disponible=${disponible}, tipo=${typeof disponible}, esBoolean=${esBoolean}, esTrue=${esTrue}, mostrar=${mostrar}`);
-                
-                if (!mostrar) {
-                  console.log(`❌ OCULTANDO ${time}`);
-                }
-                
-                return mostrar;
-              });
-              
-              console.log(`✅ RESULTADO FINAL: Mostrando ${slotsDisponibles.length} de ${timeSlots.length} horarios`);
-              console.log(`✅ Horarios a mostrar:`, slotsDisponibles);
-              console.log(`❌ Horarios ocultos:`, timeSlots.filter(t => !slotsDisponibles.includes(t)));
-              
-              if (slotsDisponibles.length === 0) {
-                return (
-                  <div className="col-span-full text-center py-8 text-gray-400">
-                    <p className="text-lg font-semibold mb-2">No hay horarios disponibles</p>
-                    <p className="text-sm">Todos los horarios están ocupados para este día y trabajador.</p>
-                  </div>
-                );
-              }
-              
-              return slotsDisponibles.map((time, index) => {
-                // Usar el valor memoizado de disponibilidad
-                const isAvailable = timeSlotAvailability[time] ?? false;
-                const isSelected = selectedTime === time;
-
-                // Verificación adicional: si está seleccionado pero no disponible, limpiar selección
-                if (isSelected && !isAvailable) {
-                  console.warn(`⚠️ Horario ${time} estaba seleccionado pero no está disponible, limpiando...`);
-                  // Limpiar la selección si no está disponible
-                  setTimeout(() => onSelectTime(''), 0);
-                }
-
-                // Log para debugging del render
-                if (index === 0) {
-                  const totalDisponibles = Object.values(timeSlotAvailability).filter(v => v).length;
-                  const totalOcupados = timeSlots.length - totalDisponibles;
-                  console.log(`🔄 [RENDER] Mostrando ${totalDisponibles} horarios disponibles. Ocultando ${totalOcupados} ocupados. Refresh: ${refreshKey}`);
-                }
-
-              return (
-                <motion.button
-                  key={`available-${time}-${refreshKey}`}
-                  type="button"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.03 }}
-                  whileHover={{ scale: 1.05, borderColor: '#c9a857' }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Verificación doble antes de seleccionar
-                    const available = timeSlotAvailability[time] ?? false;
-                    console.log(`🖱️ Click en ${time}, disponible: ${available}`);
-                    if (available) {
-                      onSelectTime(time);
-                    } else {
-                      console.warn(`⚠️ Intento de seleccionar horario no disponible: ${time}`);
-                      alert(`El horario ${time} no está disponible. Por favor, selecciona otro horario.`);
-                    }
-                  }}
-                  className={`
-                    p-3 rounded-lg border-2 transition-all duration-300 font-bold text-base cursor-pointer
-                    ${
-                      isSelected
-                        ? 'border-[#c9a857] bg-[#c9a857] text-[#1c1b1b] shadow-lg shadow-[#c9a857]/30 ring-2 ring-[#c9a857]/50'
-                        : 'border-[#2a2a2a] bg-[#1a1a1a] text-white hover:border-[#c9a857] hover:bg-[#252525]'
-                    }
-                  `}
-                >
-                  {time}
-                </motion.button>
-              );
-              });
-            })()}
-          </div>
+          <SelectHour
+            profesionalSeleccionado={workerName}
+            fechaSeleccionada={selectedDate}
+            horarioBase={["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"]}
+            horaSeleccionada={selectedTime}
+            onSelectHour={onSelectTime}
+          />
         </motion.div>
       )}
     </motion.div>
