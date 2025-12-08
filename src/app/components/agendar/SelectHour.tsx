@@ -3,60 +3,141 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock } from 'lucide-react';
-import { getWorkerOccupiedHours } from '../../../lib/utils/getWorkerOccupiedHours';
+import { getProfessionalSchedule } from '../../../lib/utils/firestore/getProfessionalSchedule';
+import { getOccupiedBlocks } from '../../../lib/utils/firestore/getOccupiedBlocks';
+import { generateFixedBlocks } from '../../../lib/utils/time/generateFixedBlocks';
 
-interface HourSlot {
-  hora: string;
+interface HourBlock {
+  hora: string; // Formato "HH:MM"
   disponible: boolean;
+  bloqueadoPorHorario: boolean; // Bloqueado porque está fuera del horario laboral
+  bloqueadoPorReserva: boolean; // Bloqueado porque hay una reserva existente
 }
 
 interface SelectHourProps {
-  profesionalSeleccionado: string | null;
-  fechaSeleccionada: string | null; // Formato "YYYY-MM-DD"
-  horarioBase: string[]; // Array de horas disponibles ["09:00", "10:00", ...]
+  professionalId: string | null; // ID del profesional en Firebase
+  professionalName: string | null; // Nombre del profesional (para buscar appointments)
+  selectedDate: string | null; // Formato "YYYY-MM-DD"
+  serviceDuration: number; // Duración del servicio en minutos
   horaSeleccionada: string | null;
   onSelectHour: (hora: string) => void;
 }
 
+/**
+ * Verifica si un bloque de tiempo está dentro del horario laboral del profesional
+ * El bloque está dentro del horario si es >= startHour y < endHour
+ * Los bloques fuera del horario laboral SIEMPRE deben estar bloqueados
+ */
+function isBlockInWorkingHours(blockHour: string, startHour: string, endHour: string): boolean {
+  const [blockH, blockM] = blockHour.split(':').map(Number);
+  const [startH, startM] = startHour.split(':').map(Number);
+  const [endH, endM] = endHour.split(':').map(Number);
+  
+  const blockMinutes = blockH * 60 + blockM;
+  const startMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+  
+  // El bloque está dentro del horario si es >= startHour y < endHour
+  // Si el bloque está fuera del horario laboral, debe aparecer como bloqueado
+  return blockMinutes >= startMinutes && blockMinutes < endMinutes;
+}
+
 export default function SelectHour({
-  profesionalSeleccionado,
-  fechaSeleccionada,
-  horarioBase,
+  professionalId,
+  professionalName,
+  selectedDate,
+  serviceDuration,
   horaSeleccionada,
   onSelectHour,
 }: SelectHourProps) {
-  const [horas, setHoras] = useState<HourSlot[]>([]);
+  const [bloques, setBloques] = useState<HourBlock[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const loadHours = async () => {
-      if (!profesionalSeleccionado || !fechaSeleccionada) {
-        setHoras([]);
+    const loadBlocks = async () => {
+      if (!professionalId || !professionalName || !selectedDate) {
+        setBloques([]);
         return;
       }
 
       setIsLoading(true);
       try {
-        // Obtener horas ocupadas desde Firebase
-        const horasOcupadas = await getWorkerOccupiedHours(
-          profesionalSeleccionado,
-          fechaSeleccionada
-        );
+        console.log('🕐 [SelectHour] Iniciando carga de bloques:', {
+          professionalId,
+          professionalName,
+          selectedDate
+        });
+        
+        // 1. Generar bloques fijos entre 10:00 y 20:00 (siempre los mismos)
+        const bloquesFijos = generateFixedBlocks();
+        console.log(`📋 [SelectHour] Bloques fijos generados: ${bloquesFijos.length}`, bloquesFijos);
+        
+        // 2. Obtener horario laboral del profesional
+        const schedule = await getProfessionalSchedule(professionalId);
+        console.log('📅 [SelectHour] Horario obtenido:', schedule);
+        
+        // 3. Obtener bloques ocupados por reservas existentes
+        const bloquesOcupados = await getOccupiedBlocks(professionalName, selectedDate);
+        console.log(`🚫 [SelectHour] Bloques ocupados: ${bloquesOcupados.length}`, bloquesOcupados);
 
-        // Construir array de horas con estado disponible/ocupada
-        const horasConEstado: HourSlot[] = horarioBase.map((hora) => ({
-          hora,
-          disponible: !horasOcupadas.includes(hora),
-        }));
+        // 4. Construir array de bloques con estado completo
+        // El estado final de cada bloque debe ser:
+        // - Bloqueado por horario → si está fuera del horario laboral del profesional
+        // - Bloqueado por reserva existente → si está dentro de un tramo ocupado según duración real
+        // - Disponible → solo si está dentro del horario laboral y no está ocupado por reservas
+        const bloquesConEstado: HourBlock[] = bloquesFijos.map((hora) => {
+          // Si no hay horario del profesional, usar horario por defecto amplio
+          // para que al menos algunos bloques estén disponibles
+          if (!schedule) {
+            console.warn(`⚠️ [SelectHour] No hay horario para ${professionalId}, usando horario por defecto`);
+            // Usar horario por defecto 10:00-20:00 para que todos los bloques estén disponibles
+            const dentroHorario = isBlockInWorkingHours(hora, '10:00', '20:00');
+            const ocupadoPorReserva = bloquesOcupados.includes(hora);
+            const disponible = dentroHorario && !ocupadoPorReserva;
+            
+            return {
+              hora,
+              disponible,
+              bloqueadoPorHorario: !dentroHorario,
+              bloqueadoPorReserva: ocupadoPorReserva,
+            };
+          }
 
-        setHoras(horasConEstado);
-      } catch (error) {
-        console.error('Error cargando horas:', error);
-        // En caso de error, marcar todas como disponibles
-        setHoras(
-          horarioBase.map((hora) => ({
+          // Verificar si está dentro del horario laboral
+          const dentroHorario = isBlockInWorkingHours(hora, schedule.startHour, schedule.endHour);
+          
+          // Verificar si está ocupado por una reserva existente
+          const ocupadoPorReserva = bloquesOcupados.includes(hora);
+          
+          // Un bloque está disponible solo si:
+          // - Está dentro del horario laboral Y
+          // - No está ocupado por una reserva
+          // Los bloques fuera del horario laboral SIEMPRE deben estar bloqueados,
+          // incluso si no hay reservas
+          const disponible = dentroHorario && !ocupadoPorReserva;
+          
+          return {
             hora,
-            disponible: true,
+            disponible,
+            bloqueadoPorHorario: !dentroHorario,
+            bloqueadoPorReserva: ocupadoPorReserva,
+          };
+        });
+
+        const disponibles = bloquesConEstado.filter(b => b.disponible).length;
+        console.log(`✅ [SelectHour] Bloques procesados: ${bloquesConEstado.length} total, ${disponibles} disponibles`);
+        
+        setBloques(bloquesConEstado);
+      } catch (error) {
+        console.error('Error cargando bloques:', error);
+        // En caso de error, marcar todos como bloqueados
+        const bloquesFijos = generateFixedBlocks();
+        setBloques(
+          bloquesFijos.map((hora) => ({
+            hora,
+            disponible: false,
+            bloqueadoPorHorario: true,
+            bloqueadoPorReserva: false,
           }))
         );
       } finally {
@@ -64,21 +145,43 @@ export default function SelectHour({
       }
     };
 
-    loadHours();
-  }, [profesionalSeleccionado, fechaSeleccionada, horarioBase]);
+    loadBlocks();
+  }, [professionalId, professionalName, selectedDate]);
 
-  const handleHourClick = (hora: string, disponible: boolean) => {
-    if (!disponible) {
-      alert(`⚠️ El horario ${hora} está ocupado. Por favor, selecciona otro horario disponible.`);
-      console.error(`❌ Intento de seleccionar horario ocupado ${hora} - BLOQUEADO`);
+  // Verificar si el bloque seleccionado sigue disponible cuando cambian los bloques
+  useEffect(() => {
+    if (horaSeleccionada && bloques.length > 0) {
+      const bloqueSeleccionado = bloques.find(b => b.hora === horaSeleccionada);
+      if (bloqueSeleccionado && !bloqueSeleccionado.disponible) {
+        // Si el bloque seleccionado ya no está disponible, limpiar selección
+        onSelectHour('');
+      }
+    }
+  }, [bloques, horaSeleccionada, onSelectHour]);
+
+  const handleBlockClick = (block: HourBlock) => {
+    if (!block.disponible) {
+      let mensaje = '';
+      if (block.bloqueadoPorHorario) {
+        mensaje = `⚠️ El horario ${block.hora} está fuera del horario laboral del profesional.`;
+      } else if (block.bloqueadoPorReserva) {
+        mensaje = `⚠️ El horario ${block.hora} está ocupado. Por favor, selecciona otro horario disponible.`;
+      } else {
+        mensaje = `⚠️ El horario ${block.hora} no está disponible.`;
+      }
+      alert(mensaje);
+      console.error(`❌ Intento de seleccionar bloque bloqueado ${block.hora} - BLOQUEADO`, {
+        bloqueadoPorHorario: block.bloqueadoPorHorario,
+        bloqueadoPorReserva: block.bloqueadoPorReserva,
+      });
       return;
     }
 
-    console.log(`✅ Seleccionando horario disponible: ${hora}`);
-    onSelectHour(hora);
+    console.log(`✅ Seleccionando bloque disponible: ${block.hora}`);
+    onSelectHour(block.hora);
   };
 
-  if (!profesionalSeleccionado || !fechaSeleccionada) {
+  if (!professionalId || !professionalName || !selectedDate) {
     return (
       <div className="text-center py-8 text-gray-500">
         <p>Primero selecciona un profesional y una fecha</p>
@@ -94,10 +197,10 @@ export default function SelectHour({
     );
   }
 
-  const horasDisponibles = horas.filter((h) => h.disponible);
-  const horasOcupadas = horas.filter((h) => !h.disponible);
+  const bloquesDisponibles = bloques.filter((b) => b.disponible);
+  const bloquesOcupados = bloques.filter((b) => !b.disponible);
 
-  if (horasDisponibles.length === 0 && horas.length > 0) {
+  if (bloquesDisponibles.length === 0 && bloques.length > 0) {
     return (
       <div className="text-center py-8 text-gray-400">
         <p className="text-lg font-semibold mb-2">No hay horarios disponibles</p>
@@ -111,37 +214,49 @@ export default function SelectHour({
       <div className="flex items-center space-x-2 mb-4">
         <Clock className="w-5 h-5 text-[#c9a857]" />
         <h3 className="text-lg font-semibold text-white">Hora</h3>
-        {horasOcupadas.length > 0 && (
+        {bloquesOcupados.length > 0 && (
           <span className="text-xs text-gray-500 ml-2">
-            ({horasOcupadas.length} ocupado{horasOcupadas.length !== 1 ? 's' : ''})
+            ({bloquesOcupados.length} ocupado{bloquesOcupados.length !== 1 ? 's' : ''})
           </span>
         )}
       </div>
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-        {horas.map((slot, index) => {
-          const isSelected = horaSeleccionada === slot.hora;
-          const isAvailable = slot.disponible;
+        {bloques.map((block, index) => {
+          const isSelected = horaSeleccionada === block.hora;
+          const isAvailable = block.disponible;
+
+          // Determinar el título según el tipo de bloqueo
+          let title = '';
+          if (block.bloqueadoPorHorario) {
+            title = `Fuera del horario laboral - ${professionalName} no trabaja a las ${block.hora}`;
+          } else if (block.bloqueadoPorReserva) {
+            title = `Horario ocupado - ${professionalName} no está disponible a las ${block.hora}`;
+          } else if (isSelected) {
+            title = 'Horario seleccionado';
+          } else {
+            title = 'Seleccionar este horario';
+          }
 
           if (!isAvailable) {
             return (
               <div
-                key={slot.hora}
-                className="p-3 rounded-lg border-2 border-[#0a0a0a] bg-gray-400 text-white cursor-not-allowed opacity-60 select-none relative"
-                title={`Horario ocupado - ${profesionalSeleccionado} no está disponible a las ${slot.hora}`}
+                key={block.hora}
+                className="p-4 rounded-lg border-2 border-[#151414] bg-[#0a0a0a] text-gray-600 cursor-not-allowed opacity-40 select-none relative"
+                title={title}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  handleHourClick(slot.hora, false);
+                  handleBlockClick(block);
                 }}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  handleHourClick(slot.hora, false);
+                  handleBlockClick(block);
                 }}
                 onTouchStart={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  handleHourClick(slot.hora, false);
+                  handleBlockClick(block);
                 }}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -155,32 +270,36 @@ export default function SelectHour({
                   msUserSelect: 'none',
                 }}
               >
-                {slot.hora}
+                <div className="text-center">
+                  <div className="text-lg font-bold">{block.hora}</div>
+                </div>
               </div>
             );
           }
 
           return (
             <motion.button
-              key={slot.hora}
+              key={block.hora}
               type="button"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.03 }}
-              whileHover={{ scale: 1.05, borderColor: '#c9a857' }}
+              transition={{ delay: index * 0.02 }}
+              whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => handleHourClick(slot.hora, true)}
+              onClick={() => handleBlockClick(block)}
               className={`
-                p-3 rounded-lg border-2 transition-all duration-300 font-bold text-base cursor-pointer
+                p-4 rounded-lg border-2 transition-all duration-300
                 ${
                   isSelected
-                    ? 'border-[#c9a857] bg-[#c9a857] text-[#1c1b1b] shadow-lg shadow-[#c9a857]/30 ring-2 ring-[#c9a857]/50'
-                    : 'bg-white text-black hover:bg-gray-200 border-gray-300'
+                    ? 'border-[#c9a857] bg-[#c9a857] text-[#1c1b1b] shadow-lg shadow-[#c9a857]/20'
+                    : 'border-[#151414] bg-[#151414] text-white hover:border-[#c9a857]/50'
                 }
               `}
-              title={isSelected ? 'Horario seleccionado' : 'Seleccionar este horario'}
+              title={title}
             >
-              {slot.hora}
+              <div className="text-center">
+                <div className="text-lg font-bold">{block.hora}</div>
+              </div>
             </motion.button>
           );
         })}
@@ -188,4 +307,3 @@ export default function SelectHour({
     </div>
   );
 }
-

@@ -805,9 +805,10 @@ export default function StepDate({
           transition={{ delay: 0.2 }}
         >
           <SelectHour
-            profesionalSeleccionado={workerName}
-            fechaSeleccionada={selectedDate}
-            horarioBase={["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"]}
+            professionalId={selectedStylist}
+            professionalName={workerName}
+            selectedDate={selectedDate}
+            serviceDuration={serviceDuration}
             horaSeleccionada={selectedTime}
             onSelectHour={onSelectTime}
           />
@@ -816,4 +817,3 @@ export default function StepDate({
     </motion.div>
   );
 }
-
