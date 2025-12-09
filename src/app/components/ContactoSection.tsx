@@ -24,25 +24,29 @@ export default function ContactoSection() {
 
         <div className="grid lg:grid-cols-2 gap-12">
           {/* Map */}
-          <motion.div
+          <motion.a
+            href="https://www.google.com/maps/search/?api=1&query=Av.+Vicuña+Mackenna+Poniente+7135,+local+8,+La+Florida,+Chile"
+            target="_blank"
+            rel="noopener noreferrer"
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="rounded-2xl overflow-hidden border border-[#c9a857]/20"
+            className="rounded-2xl overflow-hidden border border-[#c9a857]/20 block cursor-pointer hover:border-[#c9a857]/40 transition-colors"
             style={{ minHeight: '400px' }}
           >
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3329.5!2d-70.6483!3d-33.4489!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzPCsDI2JzU2LjAiUyA3MMKwMzgnNTQuOSJX!5e0!3m2!1ses!2scl!4v1234567890"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3329.5!2d-70.6483!3d-33.4489!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9662c3b5b5b5b5b5%3A0x5b5b5b5b5b5b5b5b!2sAv.+Vicuña+Mackenna+Poniente+7135,+local+8,+La+Florida,+Región+Metropolitana,+Chile!5e0!3m2!1ses!2scl!4v1234567890"
               width="100%"
               height="400"
-              style={{ border: 0 }}
+              style={{ border: 0, pointerEvents: 'none' }}
               allowFullScreen
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
               className="w-full h-full"
+              title="Mapa de ubicación - Av. Vicuña Mackenna Poniente 7135, local 8, La Florida"
             ></iframe>
-          </motion.div>
+          </motion.a>
 
           {/* Contact Info */}
           <motion.div
