@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MapPin, Phone, Mail, Instagram, Facebook } from 'lucide-react';
+import { MapPin, Phone, Instagram, Facebook } from 'lucide-react';
 
 export default function ContactoSection() {
   return (
@@ -82,22 +82,7 @@ export default function ContactoSection() {
                   <div>
                     <h4 className="text-white font-semibold mb-1">Teléfono</h4>
                     <a href="tel:+56912345678" className="text-gray-400 hover:text-[#c9a857] transition-colors">
-                      +56 9 1234 5678
-                    </a>
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  whileHover={{ x: 5 }}
-                  className="flex items-start space-x-4"
-                >
-                  <div className="w-12 h-12 bg-[#c9a857]/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Mail className="w-6 h-6 text-[#c9a857]" />
-                  </div>
-                  <div>
-                    <h4 className="text-white font-semibold mb-1">Correo</h4>
-                    <a href="mailto:contacto@versatilsalon.com" className="text-gray-400 hover:text-[#c9a857] transition-colors">
-                      contacto@versatilsalon.com
+                      +56972892789
                     </a>
                   </div>
                 </motion.div>

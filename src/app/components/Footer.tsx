@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Instagram, Facebook } from 'lucide-react';
+import { Instagram } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -69,16 +69,6 @@ export default function Footer() {
                 className="w-10 h-10 bg-[#c9a857]/10 hover:bg-[#c9a857]/20 rounded-lg flex items-center justify-center transition-colors"
               >
                 <Instagram className="w-5 h-5 text-[#c9a857]" />
-              </motion.a>
-              <motion.a
-                href="https://facebook.com/versatilsalon"
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                className="w-10 h-10 bg-[#c9a857]/10 hover:bg-[#c9a857]/20 rounded-lg flex items-center justify-center transition-colors"
-              >
-                <Facebook className="w-5 h-5 text-[#c9a857]" />
               </motion.a>
             </div>
           </div>
