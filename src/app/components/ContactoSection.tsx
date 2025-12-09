@@ -30,16 +30,17 @@ export default function ContactoSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
             className="rounded-2xl overflow-hidden border border-[#c9a857]/20"
+            style={{ minHeight: '400px' }}
           >
             <iframe
-              src="https://maps.app.goo.gl/WfYUkbNskH4BQTak6"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3329.5!2d-70.6483!3d-33.4489!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzPCsDI2JzU2LjAiUyA3MMKwMzgnNTQuOSJX!5e0!3m2!1ses!2scl!4v1234567890"
               width="100%"
-              height="100%"
-              style={{ minHeight: '400px', border: 0 }}
+              height="400"
+              style={{ border: 0 }}
               allowFullScreen
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
-              className="w-full"
+              className="w-full h-full"
             ></iframe>
           </motion.div>
 
