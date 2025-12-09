@@ -61,7 +61,7 @@ export default function Footer() {
             <h4 className="text-white font-semibold mb-4">Síguenos</h4>
             <div className="flex space-x-4">
               <motion.a
-                href="https://instagram.com/versatilsalon"
+                href="https://www.instagram.com/versatilsalon_?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw=="
                 target="_blank"
                 rel="noopener noreferrer"
                 whileHover={{ scale: 1.1 }}

@@ -16,7 +16,7 @@ export default function WhatsAppButton() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const whatsappNumber = '56912345678'; // Replace with actual WhatsApp number
+  const whatsappNumber = '56972892789'; // numero de VersatilSalon WhatsApp
   const message = encodeURIComponent('Hola! Quisiera agendar una hora en VersatilSalon');
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${message}`;
 

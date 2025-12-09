@@ -32,7 +32,7 @@ export default function ContactoSection() {
             className="rounded-2xl overflow-hidden border border-[#c9a857]/20"
           >
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3329.5!2d-70.6483!3d-33.4489!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzPCsDI2JzU2LjAiUyA3MMKwMzgnNTQuOSJX!5e0!3m2!1ses!2scl!4v1234567890"
+              src="https://maps.app.goo.gl/WfYUkbNskH4BQTak6"
               width="100%"
               height="100%"
               style={{ minHeight: '400px', border: 0 }}
@@ -67,7 +67,7 @@ export default function ContactoSection() {
                   <div>
                     <h4 className="text-white font-semibold mb-1">Dirección</h4>
                     <p className="text-gray-400">
-                      Av. Principal 123, Santiago, Chile
+                      Av. Vicuña Mackenna Poniente 7135, local 8, La Florida
                     </p>
                   </div>
                 </motion.div>
@@ -108,7 +108,7 @@ export default function ContactoSection() {
                 <h4 className="text-white font-semibold mb-4">Síguenos en:</h4>
                 <div className="flex space-x-4">
                   <motion.a
-                    href="https://instagram.com/versatilsalon"
+                    href="https://www.instagram.com/versatilsalon_?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw=="
                     target="_blank"
                     rel="noopener noreferrer"
                     whileHover={{ scale: 1.1 }}
