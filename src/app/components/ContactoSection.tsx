@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MapPin, Phone, Instagram, Facebook } from 'lucide-react';
+import { MapPin, Phone, Instagram } from 'lucide-react';
 
 export default function ContactoSection() {
   return (
@@ -101,16 +101,6 @@ export default function ContactoSection() {
                     className="w-12 h-12 bg-[#c9a857]/10 hover:bg-[#c9a857]/20 rounded-lg flex items-center justify-center transition-colors"
                   >
                     <Instagram className="w-6 h-6 text-[#c9a857]" />
-                  </motion.a>
-                  <motion.a
-                    href="https://facebook.com/versatilsalon"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="w-12 h-12 bg-[#c9a857]/10 hover:bg-[#c9a857]/20 rounded-lg flex items-center justify-center transition-colors"
-                  >
-                    <Facebook className="w-6 h-6 text-[#c9a857]" />
                   </motion.a>
                 </div>
               </div>
